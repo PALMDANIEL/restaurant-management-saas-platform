@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Palette — Dani Mak
+     Ember  #C2410C  braise / feu de grill, marque
+     Palm   #146356  vert jungle du logo, réussite / argent
+     Sun    #D68A1F  or / tissu, accents chauds, alertes douces
+     Ink    #1C1712  quasi-noir chaud (charbon), texte fort / sidebar
+     Paper  #FAF7F2  neutre chaud clair, fond app
+  */
+  --background: #F1F2E9;
+  --foreground: #1C1712;
+  --card: #ffffff;
+  --card-foreground: #1C1712;
+  --border: #E0E2D3;
+  --muted: #E9EBDD;
+  --muted-foreground: #666B5A;
+  --primary: #C2410C;
+  --primary-foreground: #ffffff;
+  --primary-strong: #9A340A;
+  --accent: #146356;
+  --accent-foreground: #ffffff;
+  --sun: #B9790F;
+  --sun-soft: #FBF0DA;
+  --sidebar: #1C1712;
+  --sidebar-foreground: #D9D2C6;
+  --sidebar-active: #C2410C;
+  --sidebar-border: #2E2620;
+  --ring: #C2410C;
+
+  --font-sans: var(--font-body, ui-sans-serif, system-ui, sans-serif);
+}
+
+.dark {
+  --background: #14110D;
+  --foreground: #F3EFE7;
+  --card: #1C1712;
+  --card-foreground: #F3EFE7;
+  --border: #2E2620;
+  --muted: #221C16;
+  --muted-foreground: #A79C8C;
+  --primary: #E8763A;
+  --primary-foreground: #14110D;
+  --primary-strong: #C2410C;
+  --accent: #2C9C81;
+  --accent-foreground: #08110D;
+  --sun: #E0A83E;
+  --sun-soft: #2C2412;
+  --sidebar: #0F0C09;
+  --sidebar-foreground: #D9D2C6;
+  --sidebar-active: #E8763A;
+  --sidebar-border: #241D17;
+  --ring: #E8763A;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-body, ui-sans-serif, system-ui, sans-serif);
+  --font-display: var(--font-display, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-mono, ui-monospace, monospace);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.font-mono, .tabular-nums-data {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.card-surface {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+
+/* Fine woven texture, evokes thatch/market-mat weave from the brand mark.
+   Used sparingly behind hero/header panels, never on data-dense surfaces. */
+.weave-texture {
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+}
+
+.dot-texture {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* Safe-area padding helpers for PWA / notch devices */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Native <table> polish, applied app-wide so every data table (stock, clients,
+   utilisateurs, caisse, dépenses, rapports) gets consistent spacing and a
+   readable row-hover state without per-page overrides. */
+:where(table) :where(thead th) {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+:where(table) :where(tbody tr) {
+  transition: background-color 0.12s ease;
+}
+:where(table) :where(tbody tr:hover) {
+  background-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+:where(table) :where(td, th) {
+  white-space: nowrap;
+}
+
+.animate-in-fade {
+  animation: fadeIn 0.35s ease both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: riseIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in-fade,
+  .animate-rise {
+    animation: none !important;
+  }
+}

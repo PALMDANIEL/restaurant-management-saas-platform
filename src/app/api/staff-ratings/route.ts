@@ -5,17 +5,13 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { requireSession, getAccessibleVenueIds, handleApiError, logAudit } from "@/lib/api-helpers";
 import { assertCan } from "@/lib/rbac";
+import { getRuleVersions, rulesFor } from "@/lib/staff-scoring";
 
-const criterion = z.number().int().min(1).max(5);
 const ratingSchema = z.object({
   venueId: z.number(),
   userId: z.number(),
   workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  courtesy: criterion,
-  appearance: criterion,
-  teamwork: criterion,
-  rigor: criterion,
-  responsiveness: criterion,
+  scores: z.record(z.string(), z.number().int().min(1).max(5)),
   comment: z.string().trim().max(1000).optional(),
 });
 
@@ -40,8 +36,17 @@ export async function PUT(req: NextRequest) {
       .limit(1);
     if (!member) return NextResponse.json({ error: "Serveuse introuvable dans ce point de vente" }, { status: 404 });
 
-    const { venueId, userId, workDate, comment, ...scores } = body;
-    const values = { ...scores, comment: comment || null, ratedBy: session.userId, updatedAt: new Date() };
+    // Seuls les critères actifs ce jour-là sont acceptés, et ils doivent tous être notés.
+    const rules = rulesFor(await getRuleVersions(body.venueId), body.workDate);
+    const active = rules.criteria.filter((c) => c.active);
+    const missing = active.filter((c) => !body.scores[c.key]);
+    if (missing.length) {
+      return NextResponse.json({ error: `Notez aussi : ${missing.map((c) => c.label).join(", ")}.` }, { status: 400 });
+    }
+    const scores = Object.fromEntries(active.map((c) => [c.key, body.scores[c.key]]));
+
+    const { venueId, userId, workDate, comment } = body;
+    const values = { scores, comment: comment || null, ratedBy: session.userId, updatedAt: new Date() };
     const [rating] = await db
       .insert(staffBehaviorRatings)
       .values({ venueId, userId, workDate, ...values })
@@ -57,7 +62,7 @@ export async function PUT(req: NextRequest) {
       action: "rate",
       entity: "staff_behavior",
       entityId: rating.id,
-      details: { userId, workDate, ...scores },
+      details: { userId, workDate, scores },
     });
     return NextResponse.json({ rating });
   } catch (error) {

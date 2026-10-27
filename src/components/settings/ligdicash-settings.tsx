@@ -87,7 +87,9 @@ export function LigdicashSettings() {
             <Input
               name="apiKey"
               autoComplete="off"
-              placeholder={settings?.apiKeyHint ? `Enregistrée (${settings.apiKeyHint}) — laisser vide pour garder` : ""}
+              placeholder={
+                settings?.apiKeyHint ? `Enregistrée (${settings.apiKeyHint}) — laisser vide pour garder` : ""
+              }
             />
           </div>
           <div>

@@ -367,7 +367,8 @@ export const attendanceRecords = pgTable(
 );
 
 // Fiche de comportement : une par personne et par journée d'exploitation, remplie par un
-// responsable. Chaque critère est noté de 1 à 5.
+// responsable. `scores` associe la clé de chaque critère (voir staffScoringRules) à une
+// note de 1 à 5 : les critères sont propres à chaque point de vente.
 export const staffBehaviorRatings = pgTable(
   "staff_behavior_ratings",
   {
@@ -379,11 +380,7 @@ export const staffBehaviorRatings = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workDate: date("work_date").notNull(),
-    courtesy: integer("courtesy").notNull(), // accueil et politesse envers les clients
-    appearance: integer("appearance").notNull(), // tenue et présentation
-    teamwork: integer("teamwork").notNull(), // esprit d'équipe, respect des collègues
-    rigor: integer("rigor").notNull(), // rigueur : commandes justes, caisse, consignes
-    responsiveness: integer("responsiveness").notNull(), // réactivité, attention aux tables
+    scores: jsonb("scores").$type<Record<string, number>>().notNull(),
     comment: text("comment"),
     ratedBy: integer("rated_by").references(() => users.id, { onDelete: "set null" }),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -392,6 +389,24 @@ export const staffBehaviorRatings = pgTable(
     uniqueIndex("staff_behavior_user_day_idx").on(t.venueId, t.userId, t.workDate),
     index("staff_behavior_work_date_idx").on(t.workDate),
   ]
+);
+
+// Règles de notation des serveuses, par point de vente. Chaque modification crée (ou
+// remplace) la version qui prend effet à la journée en cours : les journées passées gardent
+// les règles qui étaient en vigueur, l'historique ne bouge donc pas.
+export const staffScoringRules = pgTable(
+  "staff_scoring_rules",
+  {
+    id: serial("id").primaryKey(),
+    venueId: integer("venue_id")
+      .notNull()
+      .references(() => venues.id, { onDelete: "cascade" }),
+    effectiveFrom: date("effective_from").notNull(),
+    rules: jsonb("rules").notNull(),
+    updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("staff_scoring_rules_venue_from_idx").on(t.venueId, t.effectiveFrom)]
 );
 
 // ============================= CUSTOMERS (LOYALTY) =============================

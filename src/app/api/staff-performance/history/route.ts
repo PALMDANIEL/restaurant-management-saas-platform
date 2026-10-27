@@ -3,7 +3,7 @@ import { requireSession, getAccessibleVenueIds, handleApiError } from "@/lib/api
 import { can } from "@/lib/rbac";
 import { getShiftSettings } from "@/lib/shift-settings";
 import { getBusinessDate, toDateKey } from "@/lib/business-day";
-import { computeStaffDays } from "@/lib/staff-scoring";
+import { computeStaffDays, rulesFor } from "@/lib/staff-scoring";
 
 const avg = (values: number[]) =>
   values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null;
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     fromDate.setDate(fromDate.getDate() - (count - 1));
     const from = toDateKey(fromDate);
 
-    const { servers, days } = await computeStaffDays({ venueId, from, to, userIds: [userId], includeInactive: true });
+    const { servers, days, versions } = await computeStaffDays({ venueId, from, to, userIds: [userId], includeInactive: true });
     const server = servers[0];
     if (!server) return NextResponse.json({ error: "Serveuse introuvable" }, { status: 404 });
 
@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
       from,
       to,
       summary,
+      rules: rulesFor(versions, to),
       days: [...days].reverse(),
     });
   } catch (error) {

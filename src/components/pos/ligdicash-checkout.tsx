@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -116,8 +117,8 @@ export function LigdicashCheckout({
     onClose();
   }
 
-  return (
-    <div className="fixed inset-0 z-[55] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
       <div className="w-full max-w-sm rounded-t-2xl bg-card p-6 text-center shadow-xl pb-safe sm:rounded-2xl">
         <h3 className="font-display text-lg font-semibold">Paiement LigdiCash</h3>
         <p className="mt-1 text-xs text-muted-foreground">Commande #{orderId} · Orange Money, Moov Money</p>
@@ -134,9 +135,7 @@ export function LigdicashCheckout({
 
         {!error && !invoice && <p className="mt-6 text-sm text-muted-foreground">Création de la facture…</p>}
 
-        {invoice && (
-          <p className="mt-4 font-mono text-2xl font-bold tabular-nums">{formatFcfa(invoice.amount)}</p>
-        )}
+        {invoice && <p className="mt-4 font-mono text-2xl font-bold tabular-nums">{formatFcfa(invoice.amount)}</p>}
 
         {invoice?.status === "pending" && (
           <div className="mt-4 space-y-3">
@@ -182,6 +181,7 @@ export function LigdicashCheckout({
           {invoice?.status === "paid" ? "Fermer" : "Annuler"}
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

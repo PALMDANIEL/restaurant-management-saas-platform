@@ -1,20 +1,20 @@
 import { db } from "@/db";
-import { attendanceRecords, orders, staffBehaviorRatings, userVenues, users } from "@/db/schema";
-import { and, eq, gte, inArray, lt, lte, ne } from "drizzle-orm";
+import { attendanceRecords, orders, staffBehaviorRatings, staffScoringRules, userVenues, users } from "@/db/schema";
+import { and, asc, eq, gte, inArray, lt, lte, ne } from "drizzle-orm";
 import { getShiftSettings } from "./shift-settings";
 import { businessDateRange, getBusinessDate, toDateKey } from "./business-day";
 import {
-  BEHAVIOR_CRITERIA,
-  EARLY_STEP,
-  GRACE_MINUTES,
-  LATE_STEP,
-  NOTE_WEIGHTS,
-  type BehaviorCriterion,
+  DEFAULT_SCORING_RULES,
+  behaviorScore,
+  dayNote,
+  parseRules,
+  punctualityScore,
+  salesScore,
+  type ScoringRules,
 } from "./staff-scoring-rules";
 
 export * from "./staff-scoring-rules";
 
-type Rating = typeof staffBehaviorRatings.$inferSelect;
 type Settings = Awaited<ReturnType<typeof getShiftSettings>>;
 type ShiftGroup = "jour" | "soir";
 
@@ -34,9 +34,6 @@ export function scheduledShift(dateKey: string, group: ShiftGroup, settings: Set
   return { start, end: atTime(dateKey, settings.nightEndTime, sameDay ? 0 : 1) };
 }
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const clamp20 = (n: number) => Math.max(0, Math.min(20, n));
-
 function dateKeysBetween(from: string, to: string) {
   const keys: string[] = [];
   const d = atTime(from, "12:00");
@@ -46,6 +43,25 @@ function dateKeysBetween(from: string, to: string) {
     d.setDate(d.getDate() + 1);
   }
   return keys;
+}
+
+type RuleVersion = { effectiveFrom: string; rules: ScoringRules; updatedAt: Date | null };
+
+/** Toutes les versions des règles d'un point de vente, de la plus ancienne à la plus récente. */
+export async function getRuleVersions(venueId: number): Promise<RuleVersion[]> {
+  const rows = await db
+    .select()
+    .from(staffScoringRules)
+    .where(eq(staffScoringRules.venueId, venueId))
+    .orderBy(asc(staffScoringRules.effectiveFrom));
+  return rows.map((r) => ({ effectiveFrom: r.effectiveFrom, rules: parseRules(r.rules), updatedAt: r.updatedAt }));
+}
+
+/** Règles en vigueur une journée donnée (les règles par défaut avant toute modification). */
+export function rulesFor(versions: RuleVersion[], workDate: string): ScoringRules {
+  let current = DEFAULT_SCORING_RULES;
+  for (const v of versions) if (v.effectiveFrom <= workDate) current = v.rules;
+  return current;
 }
 
 export type StaffDay = {
@@ -63,9 +79,11 @@ export type StaffDay = {
     scheduledEnd: Date;
     lateMinutes: number;
     earlyLeaveMinutes: number;
+    latePoints: number;
+    earlyPoints: number;
     score: number;
   } | null;
-  behavior: (Pick<Rating, BehaviorCriterion> & { id: number; comment: string | null; score: number }) | null;
+  behavior: { id: number; scores: Record<string, number>; comment: string | null; score: number | null } | null;
   salesScore: number | null;
   /** Note du jour sur 20 (null si la personne n'a ni pointé ni vendu). */
   note: number | null;
@@ -75,7 +93,8 @@ export type StaffDay = {
 
 /**
  * Calcule, pour chaque serveuse rattachée au point de vente, le détail de chaque journée
- * d'exploitation entre `from` et `to` (dates YYYY-MM-DD incluses).
+ * d'exploitation entre `from` et `to` (dates YYYY-MM-DD incluses), avec les règles de
+ * notation en vigueur chacun de ces jours.
  */
 export async function computeStaffDays(opts: {
   venueId: number;
@@ -84,8 +103,11 @@ export async function computeStaffDays(opts: {
   userIds?: number[];
   includeInactive?: boolean;
 }) {
-  const settings = await getShiftSettings(opts.venueId);
-  const assigned = await db.select({ userId: userVenues.userId }).from(userVenues).where(eq(userVenues.venueId, opts.venueId));
+  const [settings, versions] = await Promise.all([getShiftSettings(opts.venueId), getRuleVersions(opts.venueId)]);
+  const assigned = await db
+    .select({ userId: userVenues.userId })
+    .from(userVenues)
+    .where(eq(userVenues.venueId, opts.venueId));
   let ids = assigned.map((a) => a.userId);
   if (opts.userIds) ids = ids.filter((id) => opts.userIds!.includes(id));
   const servers = ids.length
@@ -100,7 +122,7 @@ export async function computeStaffDays(opts: {
           )
         )
     : [];
-  if (servers.length === 0) return { settings, servers, days: [] as StaffDay[] };
+  if (servers.length === 0) return { settings, versions, servers, days: [] as StaffDay[] };
   const serverIds = servers.map((s) => s.id);
 
   const start = businessDateRange(opts.from, settings.nightEndTime).start;
@@ -146,6 +168,7 @@ export async function computeStaffDays(opts: {
   const now = new Date();
   const days: StaffDay[] = [];
   for (const workDate of dateKeysBetween(opts.from, opts.to)) {
+    const rules = rulesFor(versions, workDate);
     const today: StaffDay[] = servers.map((s) => {
       const myOrders = orderRows.filter(
         (o) => o.serverId === s.id && getBusinessDate(o.createdAt, settings.nightEndTime) === workDate
@@ -158,43 +181,30 @@ export async function computeStaffDays(opts: {
         (sum, a) => sum + Math.max(0, ((a.clockOut ?? now).getTime() - a.clockIn.getTime()) / 60000),
         0
       );
-      const currentlyClocked = myAttendance.some((a) => !a.clockOut);
       // L'équipe retenue est celle du pointage (elle a pu changer d'équipe depuis).
       const group = (myAttendance[0]?.shiftGroup ?? s.shiftGroup) as ShiftGroup | null;
 
       let punctuality: StaffDay["punctuality"] = null;
       if (group && myAttendance.length > 0) {
         const shift = scheduledShift(workDate, group, settings);
-        const lateMinutes = Math.max(0, Math.round((myAttendance[0].clockIn.getTime() - shift.start.getTime()) / 60000));
+        const lateMinutes = Math.max(
+          0,
+          Math.round((myAttendance[0].clockIn.getTime() - shift.start.getTime()) / 60000)
+        );
         const last = myAttendance[myAttendance.length - 1];
         const earlyLeaveMinutes = last.clockOut
           ? Math.max(0, Math.round((shift.end.getTime() - last.clockOut.getTime()) / 60000))
           : 0;
-        const latePenalty = Math.ceil(Math.max(0, lateMinutes - GRACE_MINUTES) / LATE_STEP);
-        const earlyPenalty = Math.ceil(Math.max(0, earlyLeaveMinutes - GRACE_MINUTES) / EARLY_STEP);
         punctuality = {
           scheduledStart: shift.start,
           scheduledEnd: shift.end,
           lateMinutes,
           earlyLeaveMinutes,
-          score: clamp20(20 - latePenalty - earlyPenalty),
+          ...punctualityScore(rules, lateMinutes, earlyLeaveMinutes),
         };
       }
 
       const r = ratingRows.find((x) => x.userId === s.id && x.workDate === workDate);
-      const behavior = r
-        ? {
-            id: r.id,
-            courtesy: r.courtesy,
-            appearance: r.appearance,
-            teamwork: r.teamwork,
-            rigor: r.rigor,
-            responsiveness: r.responsiveness,
-            comment: r.comment,
-            score: round1((BEHAVIOR_CRITERIA.reduce((sum, c) => sum + r[c], 0) / BEHAVIOR_CRITERIA.length / 5) * 20),
-          }
-        : null;
-
       return {
         userId: s.id,
         workDate,
@@ -210,9 +220,9 @@ export async function computeStaffDays(opts: {
           correctionNote: a.correctionNote,
         })),
         minutesWorked: Math.round(minutesWorked),
-        currentlyClocked,
+        currentlyClocked: myAttendance.some((a) => !a.clockOut),
         punctuality,
-        behavior,
+        behavior: r ? { id: r.id, scores: r.scores, comment: r.comment, score: behaviorScore(rules, r.scores) } : null,
         salesScore: null,
         note: null,
         provisional: false,
@@ -223,12 +233,11 @@ export async function computeStaffDays(opts: {
     // Ventes : comparées à la meilleure de la même équipe (le soir ne vend pas comme le matin).
     for (const group of ["jour", "soir", null] as const) {
       const team = today.filter((d) => d.shiftGroup === group && (d.attendance.length > 0 || d.orderCount > 0));
-      const maxCount = Math.max(0, ...team.map((d) => d.orderCount));
-      const maxSales = Math.max(0, ...team.map((d) => d.totalSales));
-      for (const d of team) {
-        d.salesScore =
-          maxCount === 0 ? 0 : round1(10 * (d.orderCount / maxCount) + 10 * (maxSales ? d.totalSales / maxSales : 0));
-      }
+      const best = {
+        count: Math.max(0, ...team.map((d) => d.orderCount)),
+        amount: Math.max(0, ...team.map((d) => d.totalSales)),
+      };
+      for (const d of team) d.salesScore = salesScore(rules, { count: d.orderCount, amount: d.totalSales }, best);
     }
 
     const isPast = businessDateRange(workDate, settings.nightEndTime).end <= now;
@@ -237,19 +246,17 @@ export async function computeStaffDays(opts: {
       if (!present) {
         // Absente seulement une fois la journée terminée et si elle avait une équipe.
         d.absent = isPast && d.shiftGroup !== null;
-        days.push(d);
-        continue;
+      } else {
+        d.note = dayNote(rules, {
+          sales: d.salesScore,
+          behavior: d.behavior?.score ?? null,
+          punctuality: d.punctuality?.score ?? null,
+        });
+        d.provisional = d.behavior?.score == null || !d.punctuality || d.currentlyClocked;
       }
-      const parts: [number, number][] = [];
-      if (d.salesScore !== null) parts.push([d.salesScore, NOTE_WEIGHTS.sales]);
-      if (d.behavior) parts.push([d.behavior.score, NOTE_WEIGHTS.behavior]);
-      if (d.punctuality) parts.push([d.punctuality.score, NOTE_WEIGHTS.punctuality]);
-      const weight = parts.reduce((sum, [, w]) => sum + w, 0);
-      d.note = weight ? round1(parts.reduce((sum, [v, w]) => sum + v * w, 0) / weight) : null;
-      d.provisional = !d.behavior || !d.punctuality || d.currentlyClocked;
       days.push(d);
     }
   }
 
-  return { settings, servers, days };
+  return { settings, versions, servers, days };
 }

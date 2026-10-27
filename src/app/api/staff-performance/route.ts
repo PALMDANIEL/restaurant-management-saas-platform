@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getAccessibleVenueIds, handleApiError } from "@/lib/api-helpers";
 import { getShiftSettings } from "@/lib/shift-settings";
 import { getBusinessDate } from "@/lib/business-day";
-import { computeStaffDays } from "@/lib/staff-scoring";
+import { computeStaffDays, rulesFor } from "@/lib/staff-scoring";
 
 /** Détail du jour de chaque serveuse : ventes, pointage, ponctualité, comportement, note sur 20. */
 export async function GET(req: NextRequest) {
@@ -17,8 +17,9 @@ export async function GET(req: NextRequest) {
     }
 
     const settings = await getShiftSettings(venueId);
-    const workDate = req.nextUrl.searchParams.get("workDate") || getBusinessDate(new Date(), settings.nightEndTime);
-    const { servers, days } = await computeStaffDays({ venueId, from: workDate, to: workDate });
+    const today = getBusinessDate(new Date(), settings.nightEndTime);
+    const workDate = req.nextUrl.searchParams.get("workDate") || today;
+    const { servers, days, versions } = await computeStaffDays({ venueId, from: workDate, to: workDate });
 
     const staff = days
       .map((d) => {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
       })
       .sort((a, b) => (b.note ?? -1) - (a.note ?? -1) || b.totalSales - a.totalSales);
 
-    return NextResponse.json({ workDate, settings, staff });
+    return NextResponse.json({ workDate, today, settings, rules: rulesFor(versions, workDate), staff });
   } catch (error) {
     return handleApiError(error);
   }

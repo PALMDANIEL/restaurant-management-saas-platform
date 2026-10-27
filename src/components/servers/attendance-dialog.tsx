@@ -36,7 +36,11 @@ export function AttendanceDialog({ venueId, day, onClose }: { venueId: number; d
   const defaultStart = day.punctuality?.scheduledStart ?? `${day.workDate}T08:00:00`;
 
   return (
-    <Dialog title={`Heures — ${day.firstName} ${day.lastName}`} subtitle="Toute correction est enregistrée dans le journal d'audit." onClose={onClose}>
+    <Dialog
+      title={`Heures — ${day.firstName} ${day.lastName}`}
+      subtitle="Toute correction est enregistrée dans le journal d'audit."
+      onClose={onClose}
+    >
       <div className="space-y-4">
         {day.attendance.map((a) => (
           <form
@@ -67,7 +71,11 @@ export function AttendanceDialog({ venueId, day, onClose }: { venueId: number; d
               </div>
               <div>
                 <Label>Départ</Label>
-                <Input name="clockOut" type="datetime-local" defaultValue={a.clockOut ? toLocalInput(a.clockOut) : ""} />
+                <Input
+                  name="clockOut"
+                  type="datetime-local"
+                  defaultValue={a.clockOut ? toLocalInput(a.clockOut) : ""}
+                />
               </div>
             </div>
             <Input name="note" placeholder="Motif (ex : a oublié de pointer son départ)" required />

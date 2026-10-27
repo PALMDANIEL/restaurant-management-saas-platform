@@ -11,7 +11,8 @@ import { Input, Label } from "@/components/ui/input";
 import { toast } from "sonner";
 import { can } from "@/lib/rbac";
 import { ROLE_LABELS, initials } from "@/lib/utils";
-import { User, Lock, Store, Users, Receipt, Plus, X } from "lucide-react";
+import { User, Lock, Store, Users, Receipt, Plus, X, Star } from "lucide-react";
+import Link from "next/link";
 import { LigdicashSettings } from "@/components/settings/ligdicash-settings";
 
 type Venue = { id: number; name: string; address: string | null; phone: string | null };
@@ -435,6 +436,27 @@ export default function SettingsPage() {
               Ces catégories apparaissent dans le formulaire de l&apos;écran Dépenses. Supprimer une catégorie n&apos;affecte
               pas les dépenses déjà enregistrées avec ce libellé.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {can(user?.role, "manageServers") && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 font-display text-base font-semibold">
+                <Star className="h-4 w-4" /> Notation des serveuses
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Parts ventes / comportement / ponctualité, tolérance de retard, critères de comportement, horaires des équipes.
+              </p>
+            </div>
+            <Link
+              href="/servers"
+              className="inline-flex h-10 items-center rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted"
+            >
+              Ouvrir la page Serveuses
+            </Link>
           </CardContent>
         </Card>
       )}

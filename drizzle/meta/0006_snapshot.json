@@ -1,5 +1,5 @@
 {
-  "id": "4d81beb7-eeb3-46c8-ae0e-ed044dd6ceb3",
+  "id": "af820885-4b95-4d2d-b639-9141febdf7b6",
   "prevId": "904f5413-c3d9-47f6-a0ef-d9b3f360731d",
   "version": "7",
   "dialect": "postgresql",
@@ -2721,33 +2721,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "courtesy": {
-          "name": "courtesy",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "appearance": {
-          "name": "appearance",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "teamwork": {
-          "name": "teamwork",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rigor": {
-          "name": "rigor",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "responsiveness": {
-          "name": "responsiveness",
-          "type": "integer",
+        "scores": {
+          "name": "scores",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -2848,6 +2824,105 @@
           "tableTo": "users",
           "columnsFrom": [
             "rated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.staff_scoring_rules": {
+      "name": "staff_scoring_rules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "venue_id": {
+          "name": "venue_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rules": {
+          "name": "rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "staff_scoring_rules_venue_from_idx": {
+          "name": "staff_scoring_rules_venue_from_idx",
+          "columns": [
+            {
+              "expression": "venue_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "effective_from",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "staff_scoring_rules_venue_id_venues_id_fk": {
+          "name": "staff_scoring_rules_venue_id_venues_id_fk",
+          "tableFrom": "staff_scoring_rules",
+          "tableTo": "venues",
+          "columnsFrom": [
+            "venue_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "staff_scoring_rules_updated_by_users_id_fk": {
+          "name": "staff_scoring_rules_updated_by_users_id_fk",
+          "tableFrom": "staff_scoring_rules",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by"
           ],
           "columnsTo": [
             "id"

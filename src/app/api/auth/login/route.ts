@@ -16,26 +16,16 @@ const schema = z.object({
 
 // Identifiants du compte d'administration de la plateforme (toutes entreprises confondues).
 // Ne jamais committer le vrai mot de passe : PLATFORM_ADMIN_PASSWORD_HASH doit venir des
-// variables d'environnement en production. En prod, l'absence de cette variable bloque le
-// démarrage plutôt que de retomber sur un hash codé en dur (connu de quiconque lit ce code
-// source, donc équivalent à un mot de passe public / backdoor).
-// Pas pendant la compilation : sur Vercel, les variables « sensibles » ne sont pas visibles
-// à l'étape de collecte des pages. Le contrôle s'applique dès que le serveur tourne.
-if (
-  process.env.NODE_ENV === "production" &&
-  process.env.NEXT_PHASE !== "phase-production-build" &&
-  !process.env.PLATFORM_ADMIN_PASSWORD_HASH
-) {
-  throw new Error(
-    "PLATFORM_ADMIN_PASSWORD_HASH doit être défini en production (variable d'environnement manquante)."
-  );
-}
+// variables d'environnement en production. En prod, sans cette variable, la connexion
+// administrateur plateforme est refusée plutôt que de retomber sur un hash codé en dur (connu
+// de quiconque lit ce code source, donc équivalent à un mot de passe public / backdoor) ;
+// les comptes des entreprises, eux, continuent de fonctionner.
 const PLATFORM_ADMIN_EMAIL = (process.env.PLATFORM_ADMIN_EMAIL || "superadmingmaki@ait.com")
   .toLowerCase()
   .trim();
 const PLATFORM_ADMIN_PASSWORD_HASH =
   process.env.PLATFORM_ADMIN_PASSWORD_HASH ||
-  "$2b$10$gqLJdlProPF742IcRd4QBOSGluC4gTppPzw3R6X2734d933a8jfUm";
+  (process.env.NODE_ENV === "production" ? null : "$2b$10$gqLJdlProPF742IcRd4QBOSGluC4gTppPzw3R6X2734d933a8jfUm");
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,6 +45,13 @@ export async function POST(req: NextRequest) {
     // Chemin admin plateforme : indépendant de l'entreprise choisie sur l'écran de connexion,
     // et indépendant du statut de licence de quelque entreprise que ce soit.
     if (normalizedEmail === PLATFORM_ADMIN_EMAIL) {
+      if (!PLATFORM_ADMIN_PASSWORD_HASH) {
+        console.error("PLATFORM_ADMIN_PASSWORD_HASH manquant : connexion administrateur plateforme désactivée.");
+        return NextResponse.json(
+          { error: "Compte administrateur non configuré sur ce serveur (PLATFORM_ADMIN_PASSWORD_HASH)." },
+          { status: 503 }
+        );
+      }
       const valid = await verifyPassword(password, PLATFORM_ADMIN_PASSWORD_HASH);
       if (!valid) {
         recordFailedLogin(rateLimitKey);

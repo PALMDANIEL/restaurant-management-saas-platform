@@ -5,7 +5,13 @@ const SESSION_COOKIE = "maquis_session";
 
 // Doit rester strictement identique au secret utilisé dans src/lib/auth.ts (même contrôle
 // fail-closed en production : un secret par défaut permettrait de forger des sessions).
-if (process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET) {
+// Pas pendant la compilation : sur Vercel, les variables « sensibles » ne sont pas visibles
+// à l'étape de collecte des pages. Le contrôle s'applique dès que le serveur tourne.
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build" &&
+  !process.env.AUTH_SECRET
+) {
   throw new Error(
     "AUTH_SECRET doit être défini en production (variable d'environnement manquante)."
   );

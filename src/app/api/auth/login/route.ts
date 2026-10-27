@@ -19,7 +19,13 @@ const schema = z.object({
 // variables d'environnement en production. En prod, l'absence de cette variable bloque le
 // démarrage plutôt que de retomber sur un hash codé en dur (connu de quiconque lit ce code
 // source, donc équivalent à un mot de passe public / backdoor).
-if (process.env.NODE_ENV === "production" && !process.env.PLATFORM_ADMIN_PASSWORD_HASH) {
+// Pas pendant la compilation : sur Vercel, les variables « sensibles » ne sont pas visibles
+// à l'étape de collecte des pages. Le contrôle s'applique dès que le serveur tourne.
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE !== "phase-production-build" &&
+  !process.env.PLATFORM_ADMIN_PASSWORD_HASH
+) {
   throw new Error(
     "PLATFORM_ADMIN_PASSWORD_HASH doit être défini en production (variable d'environnement manquante)."
   );

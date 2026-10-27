@@ -70,4 +70,5 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mobile_money: "Mobile Money",
   mixed: "Mixte",
   credit_note: "Avoir",
+  ligdicash: "LigdiCash",
 };

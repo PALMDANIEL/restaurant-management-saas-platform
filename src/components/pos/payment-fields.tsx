@@ -142,8 +142,16 @@ export function PaymentFields({
             <option value="cash">Espèces</option>
             <option value="card">Carte</option>
             <option value="mobile_money">Mobile Money</option>
+            <option value="ligdicash">LigdiCash (QR code Orange / Moov)</option>
             <option value="mixed">Paiement mixte</option>
           </Select>
+
+          {state.method === "ligdicash" && (
+            <p className="rounded-xl border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Un QR code s&apos;affiche : le client le scanne et paie {formatFcfa(remainingAfterNote)} depuis son
+              téléphone. La commande est réglée dès que LigdiCash confirme.
+            </p>
+          )}
 
           {state.method === "cash" && (
             <div className="space-y-2 rounded-xl border border-border p-3">
@@ -208,7 +216,7 @@ export function PaymentFields({
 /** Construit le payload `immediatePayment` / champs PATCH à partir de l'état du formulaire. */
 export function buildPaymentPayload(state: PaymentFieldsState, cashSessionId: number) {
   return {
-    method: state.method as "cash" | "card" | "mobile_money" | "mixed",
+    method: state.method as "cash" | "card" | "mobile_money" | "mixed" | "ligdicash",
     cashSessionId,
     amountReceived: state.amountReceived ? Number(state.amountReceived) : undefined,
     changeAction: state.changeAction,

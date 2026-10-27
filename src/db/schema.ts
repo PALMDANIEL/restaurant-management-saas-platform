@@ -52,6 +52,14 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "mobile_money",
   "mixed",
   "credit_note",
+  "ligdicash",
+]);
+
+export const ligdicashInvoiceStatusEnum = pgEnum("ligdicash_invoice_status", [
+  "pending",
+  "paid",
+  "failed",
+  "cancelled",
 ]);
 
 export const creditNoteStatusEnum = pgEnum("credit_note_status", [
@@ -115,6 +123,11 @@ export const companies = pgTable("companies", {
   licenseStatus: licenseStatusEnum("license_status").notNull().default("active"),
   licenseExpiresAt: timestamp("license_expires_at"),
   maxUsers: integer("max_users"),
+  // Compte marchand LigdiCash de l'entreprise (Orange Money, Moov Money) : l'argent arrive
+  // directement chez le restaurant, jamais sur un compte de la plateforme.
+  ligdicashApiKey: text("ligdicash_api_key"),
+  ligdicashAuthToken: text("ligdicash_auth_token"),
+  ligdicashLive: boolean("ligdicash_live").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -508,6 +521,38 @@ export const payments = pgTable(
     index("payments_venue_idx").on(t.venueId),
     index("payments_order_idx").on(t.orderId),
     index("payments_created_idx").on(t.createdAt),
+  ]
+);
+
+// ============================= PAIEMENTS LIGDICASH =============================
+// Une facture LigdiCash par tentative de paiement en ligne. La commande n'est réglée
+// (ligne dans `payments`) qu'une fois LigdiCash ayant confirmé le paiement.
+export const ligdicashInvoices = pgTable(
+  "ligdicash_invoices",
+  {
+    id: serial("id").primaryKey(),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    venueId: integer("venue_id")
+      .notNull()
+      .references(() => venues.id, { onDelete: "cascade" }),
+    cashSessionId: integer("cash_session_id").references(() => cashSessions.id, { onDelete: "set null" }),
+    // Montant demandé au client (total de la commande moins l'éventuel avoir).
+    amount: integer("amount").notNull(),
+    // Avoir à appliquer sur le reste de la commande au moment de la confirmation.
+    creditNoteCode: varchar("credit_note_code", { length: 20 }),
+    token: text("token").unique(),
+    paymentUrl: text("payment_url"),
+    status: ligdicashInvoiceStatusEnum("status").notNull().default("pending"),
+    operator: varchar("operator", { length: 60 }),
+    createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    paidAt: timestamp("paid_at"),
+  },
+  (t) => [
+    index("ligdicash_invoices_order_idx").on(t.orderId),
+    index("ligdicash_invoices_venue_idx").on(t.venueId),
   ]
 );
 

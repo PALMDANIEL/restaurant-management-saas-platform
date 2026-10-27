@@ -2,14 +2,14 @@ import { db } from "@/db";
 import { payments, creditNotes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export type PaymentMethod = "cash" | "card" | "mobile_money" | "mixed";
+export type PaymentMethod = "cash" | "card" | "mobile_money" | "mixed" | "ligdicash";
 
 export type SettlePaymentInput = {
   orderId: number;
   venueId: number;
   /** Montant total à couvrir par ce règlement (le total de la commande). */
   total: number;
-  cashSessionId: number;
+  cashSessionId: number | null;
   method: PaymentMethod;
   /** Espèces tendues par le client (paiements en cash uniquement). */
   amountReceived?: number | null;

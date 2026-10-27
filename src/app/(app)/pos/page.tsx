@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { queueOrder, isNetworkError } from "@/lib/offline-queue";
 import { playOrderChime } from "@/lib/order-chime";
 import { usePaymentFields, PaymentFields, buildPaymentPayload } from "@/components/pos/payment-fields";
+import { LigdicashCheckout } from "@/components/pos/ligdicash-checkout";
 import { Plus, Minus, Trash2, ShoppingCart, Search, X } from "lucide-react";
 
 type Product = {
@@ -45,6 +46,9 @@ export default function PosPage() {
   const [serverId, setServerId] = useState<string>("");
   const paymentFields = usePaymentFields("cash");
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [ligdicash, setLigdicash] = useState<{ orderId: number; cashSessionId: number; creditNoteCode?: string } | null>(
+    null
+  );
 
   const targetVenueId = venueParam !== "all" ? Number(venueParam) : venues[0]?.id;
 
@@ -176,10 +180,48 @@ export default function PosPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // LigdiCash : la commande est d'abord enregistrée, puis réglée quand le client a payé
+  // depuis son téléphone (pas de file hors ligne : le paiement exige une connexion).
+  const startLigdicash = useMutation({
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setLigdicash({
+        orderId: data.order.id,
+        cashSessionId: currentSession!.id,
+        creditNoteCode: paymentFields.appliedCreditNote?.code,
+      });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setCart([]);
+      setTableId("");
+      setServerId("");
+      paymentFields.reset();
+      setMobileCartOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   function checkout() {
     if (cart.length === 0) return;
     if (!currentSession) {
       toast.error("Ouvre une session de caisse avant d'encaisser une vente.");
+      return;
+    }
+    if (paymentFields.method === "ligdicash" && (paymentFields.appliedCreditNote?.remainingAmount ?? 0) < total) {
+      startLigdicash.mutate({
+        venueId: targetVenueId,
+        tableId: tableId ? Number(tableId) : null,
+        serverId: serverId ? Number(serverId) : null,
+        items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+      });
       return;
     }
     createOrder.mutate({
@@ -267,7 +309,11 @@ export default function PosPage() {
         <Button variant="outline" disabled={cart.length === 0} loading={createOrder.isPending} onClick={sendToKitchen}>
           Cuisine
         </Button>
-        <Button disabled={cart.length === 0 || !currentSession} loading={createOrder.isPending} onClick={checkout}>
+        <Button
+          disabled={cart.length === 0 || !currentSession}
+          loading={createOrder.isPending || startLigdicash.isPending}
+          onClick={checkout}
+        >
           Encaisser
         </Button>
       </div>
@@ -371,6 +417,25 @@ export default function PosPage() {
             {cartBody}
           </div>
         </div>
+      )}
+
+      {ligdicash && (
+        <LigdicashCheckout
+          {...ligdicash}
+          onPaid={(invoice) => {
+            setLigdicash(null);
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+            queryClient.invalidateQueries({ queryKey: ["cash-sessions"] });
+            toast.success("Vente réglée par LigdiCash", {
+              action: { label: "Voir le reçu", onClick: () => window.open(`/receipt/${invoice.orderId}`, "_blank") },
+            });
+          }}
+          onClose={() => {
+            toast.info(`Commande #${ligdicash.orderId} enregistrée, à encaisser depuis Commandes.`);
+            setLigdicash(null);
+          }}
+        />
       )}
     </div>
   );

@@ -13,6 +13,7 @@ import { formatDate, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { can } from "@/lib/rbac";
 import { usePaymentFields, PaymentFields, buildPaymentPayload } from "@/components/pos/payment-fields";
+import { LigdicashCheckout } from "@/components/pos/ligdicash-checkout";
 import { Clock, ChefHat, CheckCircle2, Wallet, XCircle, UtensilsCrossed } from "lucide-react";
 
 type OrderItem = { id: number; productName: string; quantity: string; unitPrice: number };
@@ -58,6 +59,9 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [checkoutOrder, setCheckoutOrder] = useState<Order | null>(null);
   const paymentFields = usePaymentFields("cash");
+  const [ligdicash, setLigdicash] = useState<{ orderId: number; cashSessionId: number; creditNoteCode?: string } | null>(
+    null
+  );
 
   function openCheckout(o: Order) {
     paymentFields.reset();
@@ -245,6 +249,14 @@ export default function OrdersPage() {
                   return;
                 }
                 const { method, ...rest } = buildPaymentPayload(paymentFields, cashSessionId);
+                if (
+                  method === "ligdicash" &&
+                  (paymentFields.appliedCreditNote?.remainingAmount ?? 0) < checkoutOrder.totalAmount
+                ) {
+                  setLigdicash({ orderId: checkoutOrder.id, cashSessionId, creditNoteCode: rest.creditNoteCode });
+                  setCheckoutOrder(null);
+                  return;
+                }
                 updateOrder.mutate({
                   id: checkoutOrder.id,
                   status: "paid",
@@ -277,6 +289,21 @@ export default function OrdersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {ligdicash && (
+        <LigdicashCheckout
+          {...ligdicash}
+          onPaid={(invoice) => {
+            setLigdicash(null);
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+            toast.success(`Commande #${invoice.orderId} réglée par LigdiCash`, {
+              action: { label: "Voir le reçu", onClick: () => window.open(`/receipt/${invoice.orderId}`, "_blank") },
+            });
+          }}
+          onClose={() => setLigdicash(null)}
+        />
       )}
     </div>
   );

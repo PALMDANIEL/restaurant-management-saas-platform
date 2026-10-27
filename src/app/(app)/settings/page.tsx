@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { can } from "@/lib/rbac";
 import { ROLE_LABELS, initials } from "@/lib/utils";
 import { User, Lock, Store, Users, Receipt, Plus, X } from "lucide-react";
+import { LigdicashSettings } from "@/components/settings/ligdicash-settings";
 
 type Venue = { id: number; name: string; address: string | null; phone: string | null };
 type StaffUser = { id: number; firstName: string; lastName: string; phone: string | null; active: boolean };
@@ -437,6 +438,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {user?.role === "super_admin" && <LigdicashSettings />}
     </div>
   );
 }

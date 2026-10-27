@@ -4,6 +4,7 @@ import { companies, venues, products, orderItems } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { requireSession, handleApiError, logAudit, auditUserId } from "@/lib/api-helpers";
 import { assertPlatformAdmin } from "@/lib/rbac";
+import { withoutSecrets } from "@/lib/ligdicash";
 import { z } from "zod";
 
 export async function GET() {
@@ -11,7 +12,7 @@ export async function GET() {
     const session = await requireSession();
     assertPlatformAdmin(session.role);
     const rows = await db.select().from(companies);
-    return NextResponse.json({ companies: rows });
+    return NextResponse.json({ companies: rows.map(withoutSecrets) });
   } catch (error) {
     return handleApiError(error);
   }
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
       })
       .returning();
     await logAudit({ userId: auditUserId(session), action: "create", entity: "company", entityId: company.id, details: body });
-    return NextResponse.json({ company }, { status: 201 });
+    return NextResponse.json({ company: withoutSecrets(company) }, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest) {
     const [updated] = await db.update(companies).set(updates).where(eq(companies.id, id)).returning();
     if (!updated) return NextResponse.json({ error: "Entreprise introuvable" }, { status: 404 });
     await logAudit({ userId: auditUserId(session), action: "update", entity: "company", entityId: id, details: updates });
-    return NextResponse.json({ company: updated });
+    return NextResponse.json({ company: withoutSecrets(updated) });
   } catch (error) {
     return handleApiError(error);
   }

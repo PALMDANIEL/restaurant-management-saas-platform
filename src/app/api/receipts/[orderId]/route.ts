@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { requireSession, getAccessibleVenueIds, handleApiError } from "@/lib/api-helpers";
+import { withoutSecrets } from "@/lib/ligdicash";
 
 export async function GET(
   req: NextRequest,
@@ -92,7 +93,7 @@ export async function GET(
       order,
       items,
       venue,
-      company,
+      company: company ? withoutSecrets(company) : null,
       payments: enrichedPayments,
       server: server ? { firstName: server.firstName, lastName: server.lastName } : null,
       cashier: receiver ? { firstName: receiver.firstName, lastName: receiver.lastName } : cashier

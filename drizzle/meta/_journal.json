@@ -43,6 +43,13 @@
       "when": 1793058828801,
       "tag": "0005_ligdicash",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793059597596,
+      "tag": "0006_staff_behavior",
+      "breakpoints": true
     }
   ]
 }

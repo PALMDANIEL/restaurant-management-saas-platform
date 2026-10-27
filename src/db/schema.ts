@@ -353,6 +353,9 @@ export const attendanceRecords = pgTable(
     workDate: date("work_date").notNull(),
     clockIn: timestamp("clock_in").notNull().defaultNow(),
     clockOut: timestamp("clock_out"),
+    // Renseigné quand un responsable corrige les heures (oubli de pointage, erreur).
+    correctedBy: integer("corrected_by").references(() => users.id, { onDelete: "set null" }),
+    correctionNote: text("correction_note"),
     createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -360,6 +363,34 @@ export const attendanceRecords = pgTable(
     index("attendance_venue_idx").on(t.venueId),
     index("attendance_user_idx").on(t.userId),
     index("attendance_work_date_idx").on(t.workDate),
+  ]
+);
+
+// Fiche de comportement : une par personne et par journée d'exploitation, remplie par un
+// responsable. Chaque critère est noté de 1 à 5.
+export const staffBehaviorRatings = pgTable(
+  "staff_behavior_ratings",
+  {
+    id: serial("id").primaryKey(),
+    venueId: integer("venue_id")
+      .notNull()
+      .references(() => venues.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workDate: date("work_date").notNull(),
+    courtesy: integer("courtesy").notNull(), // accueil et politesse envers les clients
+    appearance: integer("appearance").notNull(), // tenue et présentation
+    teamwork: integer("teamwork").notNull(), // esprit d'équipe, respect des collègues
+    rigor: integer("rigor").notNull(), // rigueur : commandes justes, caisse, consignes
+    responsiveness: integer("responsiveness").notNull(), // réactivité, attention aux tables
+    comment: text("comment"),
+    ratedBy: integer("rated_by").references(() => users.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("staff_behavior_user_day_idx").on(t.venueId, t.userId, t.workDate),
+    index("staff_behavior_work_date_idx").on(t.workDate),
   ]
 );
 

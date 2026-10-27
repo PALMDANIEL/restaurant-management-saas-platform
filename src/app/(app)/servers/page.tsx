@@ -11,6 +11,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { initials } from "@/lib/utils";
 import { toast } from "sonner";
 import { can } from "@/lib/rbac";
+import { NOTE_WEIGHTS } from "@/lib/staff-scoring-rules";
 import {
   UserPlus,
   X,
@@ -25,7 +26,23 @@ import {
   Trophy,
   Settings2,
   Clock,
+  Star,
+  History,
+  PencilLine,
+  AlertTriangle,
 } from "lucide-react";
+import { BehaviorDialog } from "@/components/servers/behavior-dialog";
+import { AttendanceDialog } from "@/components/servers/attendance-dialog";
+import { HistoryDialog } from "@/components/servers/history-dialog";
+import {
+  formatFcfa,
+  formatHours,
+  formatNote,
+  formatTime,
+  noteLabel,
+  noteTone,
+  type StaffDay,
+} from "@/components/servers/types";
 
 type StaffUser = {
   id: number;
@@ -44,15 +61,6 @@ type MonthlyPerf = {
   avgServiceMinutes: number | null;
   score: number | null;
 };
-type DailyPerf = {
-  id: number;
-  orderCount: number;
-  totalSales: number;
-  averageTicket: number;
-  attendance: { id: number; clockIn: string; clockOut: string | null }[];
-  minutesWorked: number;
-  currentlyClocked: boolean;
-};
 type ShiftSettings = {
   venueId: number;
   dayStartTime: string;
@@ -68,17 +76,6 @@ function scoreLabel(score: number | null) {
   if (score >= 40) return { label: "Moyen", className: "border-amber-300 bg-amber-50 text-amber-700" };
   return { label: "À améliorer", className: "border-red-300 bg-red-50 text-red-700" };
 }
-function formatFcfa(n: number) {
-  return `${n.toLocaleString("fr-FR")} FCFA`;
-}
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-function formatHours(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  return `${h}h${String(m).padStart(2, "0")}`;
-}
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -92,6 +89,7 @@ export default function ServersPage() {
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [workDate, setWorkDate] = useState(todayKey());
+  const [dialog, setDialog] = useState<{ kind: "behavior" | "attendance" | "history"; day: StaffDay } | null>(null);
 
   const targetVenueId = venueParam !== "all" ? Number(venueParam) : venues[0]?.id;
 
@@ -113,9 +111,16 @@ export default function ServersPage() {
     enabled: !!targetVenueId,
     refetchInterval: 30000,
   });
-  const dailyById = new Map<number, DailyPerf>((dailyData?.staff ?? []).map((p: DailyPerf) => [p.id, p]));
+  const dailyById = new Map<number, StaffDay>((dailyData?.staff ?? []).map((p: StaffDay) => [p.id, p]));
   const settings: ShiftSettings | undefined = dailyData?.settings;
   const maxSales = Math.max(1, ...[...dailyById.values()].map((d) => d.totalSales));
+  // Meilleure note du jour dans chaque équipe (trophée).
+  const bestNote = new Map<string, number>();
+  for (const d of dailyById.values()) {
+    if (d.note === null) continue;
+    const key = d.shiftGroup ?? "";
+    bestNote.set(key, Math.max(bestNote.get(key) ?? 0, d.note));
+  }
 
   const dayTeam = useMemo(() => servers.filter((s) => s.shiftGroup === "jour"), [servers]);
   const nightTeam = useMemo(() => servers.filter((s) => s.shiftGroup === "soir"), [servers]);
@@ -212,7 +217,9 @@ export default function ServersPage() {
     const monthly = monthlyById.get(s.id);
     const daily = dailyById.get(s.id);
     const sc = scoreLabel(monthly?.score ?? null);
-    const isTop = daily && daily.totalSales > 0 && daily.totalSales === maxSales;
+    const isTop = !!daily && daily.note !== null && daily.note === bestNote.get(daily.shiftGroup ?? "");
+    const manager = can(user?.role, "manageServers");
+    const p = daily?.punctuality;
 
     return (
       <Card>
@@ -296,16 +303,42 @@ export default function ServersPage() {
             </div>
           </div>
 
-          {/* Score du jour (ventes) + pointage */}
-          <div className="space-y-2 rounded-xl border border-border p-2.5">
+          {/* Note du jour : ventes + comportement + ponctualité */}
+          <div className="space-y-2.5 rounded-xl border border-border p-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Score du jour</span>
-              {daily?.currentlyClocked ? (
+              <span className="text-sm font-medium">Note du jour</span>
+              {daily?.absent ? (
+                <Badge className="border-red-300 bg-red-50 text-red-700">Absente</Badge>
+              ) : daily?.currentlyClocked ? (
                 <Badge className="border-emerald-300 bg-emerald-50 text-emerald-700">En service</Badge>
               ) : (
                 <Badge className="border-border bg-muted text-muted-foreground">Hors service</Badge>
               )}
             </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-2xl font-bold tabular-nums">
+                {daily?.note != null ? `${formatNote(daily.note)}/20` : "—"}
+              </span>
+              <Badge className={noteTone(daily?.note ?? null)}>
+                {noteLabel(daily?.note ?? null)}
+                {daily?.provisional && daily.note !== null ? " · provisoire" : ""}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="rounded-lg bg-muted/50 p-1.5">
+                <p className="text-sm font-semibold">{daily?.salesScore != null ? formatNote(daily.salesScore) : "—"}</p>
+                <p className="text-[10px] text-muted-foreground">Ventes /20</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-1.5">
+                <p className="text-sm font-semibold">{daily?.behavior ? formatNote(daily.behavior.score) : "—"}</p>
+                <p className="text-[10px] text-muted-foreground">Comportement /20</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-1.5">
+                <p className="text-sm font-semibold">{p ? formatNote(p.score) : "—"}</p>
+                <p className="text-[10px] text-muted-foreground">Ponctualité /20</p>
+              </div>
+            </div>
+
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary transition-all"
@@ -318,19 +351,39 @@ export default function ServersPage() {
               </span>
               <span className="text-xs text-muted-foreground">
                 {daily?.orderCount ?? 0} vente{(daily?.orderCount ?? 0) > 1 ? "s" : ""}
+                {daily && daily.orderCount > 0 && ` · panier ${formatFcfa(daily.averageTicket)}`}
               </span>
             </div>
-            <div className="flex items-center justify-between border-t border-border pt-2">
-              <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+
+            <div className="space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-1">
                 <Clock className="h-3 w-3" />
+                {p && (
+                  <span>
+                    Prévu {formatTime(p.scheduledStart)}–{formatTime(p.scheduledEnd)} ·
+                  </span>
+                )}
                 {(!daily || daily.attendance.length === 0) && <span>Pas encore pointé</span>}
                 {daily?.attendance.map((a) => (
-                  <span key={a.id}>
+                  <span key={a.id} title={a.corrected ? `Corrigé : ${a.correctionNote}` : undefined}>
                     {formatTime(a.clockIn)}–{a.clockOut ? formatTime(a.clockOut) : "..."}
+                    {a.corrected && <PencilLine className="ml-0.5 inline h-3 w-3" />}
                   </span>
                 ))}
                 {daily && daily.minutesWorked > 0 && <span>({formatHours(daily.minutesWorked)})</span>}
               </div>
+              {p && (p.lateMinutes > 5 || p.earlyLeaveMinutes > 5) && (
+                <p className="flex items-center gap-1 text-amber-700">
+                  <AlertTriangle className="h-3 w-3" />
+                  {p.lateMinutes > 5 && `Retard ${p.lateMinutes} min`}
+                  {p.lateMinutes > 5 && p.earlyLeaveMinutes > 5 && " · "}
+                  {p.earlyLeaveMinutes > 5 && `Partie ${p.earlyLeaveMinutes} min plus tôt`}
+                </p>
+              )}
+              {daily?.behavior?.comment && <p className="italic">« {daily.behavior.comment} »</p>}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
               {daily?.currentlyClocked ? (
                 <Button
                   size="sm"
@@ -347,11 +400,32 @@ export default function ServersPage() {
                 <Button
                   size="sm"
                   loading={clockIn.isPending}
-                  disabled={!s.shiftGroup}
-                  title={!s.shiftGroup ? "Assignez d'abord une équipe (jour/soir)" : undefined}
+                  disabled={!s.shiftGroup || workDate !== todayKey()}
+                  title={
+                    !s.shiftGroup
+                      ? "Assignez d'abord une équipe (jour/soir)"
+                      : workDate !== todayKey()
+                        ? "Pour un autre jour, utilisez « Heures »"
+                        : undefined
+                  }
                   onClick={() => clockIn.mutate(s.id)}
                 >
                   <LogIn className="h-3.5 w-3.5" /> Arrivée
+                </Button>
+              )}
+              {manager && daily && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setDialog({ kind: "attendance", day: daily })}>
+                    <PencilLine className="h-3.5 w-3.5" /> Heures
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setDialog({ kind: "behavior", day: daily })}>
+                    <Star className="h-3.5 w-3.5" /> {daily.behavior ? "Comportement" : "Noter"}
+                  </Button>
+                </>
+              )}
+              {(manager || s.id === user?.id) && daily && (
+                <Button size="sm" variant="ghost" onClick={() => setDialog({ kind: "history", day: daily })}>
+                  <History className="h-3.5 w-3.5" /> Historique
                 </Button>
               )}
             </div>
@@ -367,7 +441,8 @@ export default function ServersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Serveuses</h1>
           <p className="text-sm text-muted-foreground">
-            Score qualité du mois, score de ventes du jour, pointage et équipes jour/soir.
+            Équipes du matin et du soir, arrivées et départs, note du jour sur 20 : ventes ({Math.round(NOTE_WEIGHTS.sales * 100)} %),
+            comportement ({Math.round(NOTE_WEIGHTS.behavior * 100)} %) et ponctualité ({Math.round(NOTE_WEIGHTS.punctuality * 100)} %).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -560,6 +635,20 @@ export default function ServersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {dialog && targetVenueId && dialog.kind === "behavior" && (
+        <BehaviorDialog venueId={targetVenueId} day={dialog.day} onClose={() => setDialog(null)} />
+      )}
+      {dialog && targetVenueId && dialog.kind === "attendance" && (
+        <AttendanceDialog
+          venueId={targetVenueId}
+          day={dailyById.get(dialog.day.id) ?? dialog.day}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog && targetVenueId && dialog.kind === "history" && (
+        <HistoryDialog venueId={targetVenueId} server={dialog.day} onClose={() => setDialog(null)} />
       )}
     </div>
   );

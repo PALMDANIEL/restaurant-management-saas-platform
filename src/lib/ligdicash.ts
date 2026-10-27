@@ -3,6 +3,7 @@ import { companies, customers, ligdicashInvoices, orders, venues } from "@/db/sc
 import { and, eq, inArray } from "drizzle-orm";
 import { pushNotification } from "./api-helpers";
 import { settleOrderPayment } from "./payments";
+import { FCFA_PER_POINT } from "./loyalty";
 
 /**
  * LigdiCash (ligdicash.com) : paiement Orange Money / Moov Money par page de paiement.
@@ -41,7 +42,9 @@ export async function getLigdicashAccount(venueId: number): Promise<LigdicashAcc
 async function call<T>(account: LigdicashAccount, path: string, init: RequestInit): Promise<T | null> {
   let res: Response;
   try {
-    res = await fetch(`${account.live ? LIVE_URL : TEST_URL}${path}`, {
+    // LIGDICASH_URL remplace l'adresse de LigdiCash (serveur simulé pour les essais).
+    const base = process.env.LIGDICASH_URL || (account.live ? LIVE_URL : TEST_URL);
+    res = await fetch(`${base}${path}`, {
       ...init,
       headers: {
         Accept: "application/json",
@@ -215,7 +218,7 @@ export async function refreshInvoice(invoice: Invoice): Promise<Invoice> {
       await db
         .update(customers)
         .set({
-          loyaltyPoints: c.loyaltyPoints + Math.floor(order.totalAmount / 1000),
+          loyaltyPoints: c.loyaltyPoints + Math.floor(order.totalAmount / FCFA_PER_POINT),
           totalSpent: c.totalSpent + order.totalAmount,
         })
         .where(eq(customers.id, c.id));

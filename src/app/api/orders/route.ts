@@ -21,6 +21,7 @@ import {
 } from "@/lib/api-helpers";
 import { assertCan } from "@/lib/rbac";
 import { settleOrderPayment } from "@/lib/payments";
+import { FCFA_PER_POINT } from "@/lib/loyalty";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -219,7 +220,7 @@ export async function POST(req: NextRequest) {
           await db
             .update(customers)
             .set({
-              loyaltyPoints: c.loyaltyPoints + Math.floor(total / 1000),
+              loyaltyPoints: c.loyaltyPoints + Math.floor(total / FCFA_PER_POINT),
               totalSpent: c.totalSpent + total,
             })
             .where(eq(customers.id, c.id));
@@ -336,7 +337,7 @@ export async function PATCH(req: NextRequest) {
           await db
             .update(customers)
             .set({
-              loyaltyPoints: c.loyaltyPoints + Math.floor(existing.totalAmount / 1000),
+              loyaltyPoints: c.loyaltyPoints + Math.floor(existing.totalAmount / FCFA_PER_POINT),
               totalSpent: c.totalSpent + existing.totalAmount,
             })
             .where(eq(customers.id, c.id));

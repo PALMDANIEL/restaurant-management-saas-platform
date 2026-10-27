@@ -6,8 +6,9 @@ import { requireSession, assertVenueAccess, handleApiError, logAudit, pushNotifi
 import { assertCan } from "@/lib/rbac";
 import { z } from "zod";
 
-/** 1 loyalty point earned per 500 FCFA spent. */
-export const FCFA_PER_POINT = 500;
+import { FCFA_PER_POINT } from "@/lib/loyalty";
+
+export { FCFA_PER_POINT };
 
 export async function GET(req: NextRequest) {
   try {

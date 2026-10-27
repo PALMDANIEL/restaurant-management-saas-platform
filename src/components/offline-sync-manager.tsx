@@ -1,13 +1,28 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { WifiOff, RefreshCw } from "lucide-react";
 import { getQueuedOrders, removeQueuedOrder, countQueuedOrders } from "@/lib/offline-queue";
 
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
 export function OfflineSyncManager() {
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  // Lu depuis le navigateur après l'hydratation : le rendu serveur suppose « en ligne »,
+  // sans quoi la bannière hors ligne faisait échouer l'hydratation de toute l'application.
+  const isOnline = useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true
+  );
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const queryClient = useQueryClient();
@@ -77,15 +92,10 @@ export function OfflineSyncManager() {
     refreshPendingCount();
 
     function handleOnline() {
-      setIsOnline(true);
       flushQueue();
-    }
-    function handleOffline() {
-      setIsOnline(false);
     }
 
     window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
 
     // Safety net: some flaky connections report navigator.onLine === true while requests
     // still fail. Retry periodically regardless, it's a no-op when the queue is empty.
@@ -96,7 +106,6 @@ export function OfflineSyncManager() {
 
     return () => {
       window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
       clearInterval(interval);
     };
   }, [flushQueue, refreshPendingCount]);

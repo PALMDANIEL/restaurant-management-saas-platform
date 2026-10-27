@@ -208,7 +208,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <Label>Email</Label>
-              <Input value={user?.email} disabled />
+              <Input value={user?.email ?? ""} disabled />
             </div>
             <div>
               <Label>Rôle</Label>

@@ -34,6 +34,20 @@ export function scheduledShift(dateKey: string, group: ShiftGroup, settings: Set
   return { start, end: atTime(dateKey, settings.nightEndTime, sameDay ? 0 : 1) };
 }
 
+/**
+ * Journée à laquelle rattacher un pointage : celle dont l'heure d'arrivée prévue pour cette
+ * équipe est la plus proche. Une serveuse du matin arrivée à 05h50 compte pour le jour même,
+ * une serveuse du soir encore présente à 02h00 pour la veille.
+ */
+export function attendanceWorkDate(clockIn: Date, group: ShiftGroup, settings: Settings) {
+  const sameDay = toDateKey(clockIn);
+  const previous = new Date(clockIn);
+  previous.setDate(previous.getDate() - 1);
+  const candidates = [sameDay, toDateKey(previous)];
+  const distance = (key: string) => Math.abs(clockIn.getTime() - scheduledShift(key, group, settings).start.getTime());
+  return candidates.reduce((best, key) => (distance(key) < distance(best) ? key : best));
+}
+
 function dateKeysBetween(from: string, to: string) {
   const keys: string[] = [];
   const d = atTime(from, "12:00");

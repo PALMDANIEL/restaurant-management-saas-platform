@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, Smartphone, XCircle } from "lucide-react";
 
 type Invoice = {
@@ -88,7 +87,6 @@ export function LigdicashCheckout({
   useEffect(() => {
     if (invoice?.status === "paid" && !paidRef.current) {
       paidRef.current = true;
-      toast.success(`Paiement LigdiCash reçu (${formatFcfa(invoice.amount)})`);
       onPaid(invoice);
     }
   }, [invoice, onPaid]);

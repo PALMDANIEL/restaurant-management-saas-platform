@@ -5,7 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { requireSession, getAccessibleVenueIds, handleApiError, logAudit } from "@/lib/api-helpers";
 import { can } from "@/lib/rbac";
 import { getShiftSettings } from "@/lib/shift-settings";
-import { getBusinessDate } from "@/lib/business-day";
+import { attendanceWorkDate } from "@/lib/staff-scoring";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     const settings = await getShiftSettings(body.venueId);
-    const workDate = getBusinessDate(clockInAt, settings.nightEndTime);
+    const workDate = attendanceWorkDate(clockInAt, target.shiftGroup, settings);
 
     const [record] = await db
       .insert(attendanceRecords)
@@ -176,7 +176,7 @@ export async function PATCH(req: NextRequest) {
         .set({
           clockIn,
           clockOut,
-          workDate: getBusinessDate(clockIn, settings.nightEndTime),
+          workDate: attendanceWorkDate(clockIn, existing.shiftGroup, settings),
           correctedBy: session.userId,
           correctionNote: body.correctionNote,
         })

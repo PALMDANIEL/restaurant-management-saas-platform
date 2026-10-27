@@ -142,7 +142,7 @@ export function PaymentFields({
             <option value="cash">Espèces</option>
             <option value="card">Carte</option>
             <option value="mobile_money">Mobile Money</option>
-            <option value="ligdicash">LigdiCash (QR code Orange / Moov)</option>
+            <option value="ligdicash">LigdiCash · QR</option>
             <option value="mixed">Paiement mixte</option>
           </Select>
 
@@ -204,7 +204,7 @@ export function PaymentFields({
         </>
       )}
 
-      {remainingAfterNote === 0 && (
+      {remainingAfterNote === 0 && state.appliedCreditNote && (
         <p className="rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
           Entièrement couvert par l&apos;avoir.
         </p>

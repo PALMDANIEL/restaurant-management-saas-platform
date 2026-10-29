@@ -1,0 +1,68 @@
+{
+  "name": "dani-mak-bureau",
+  "productName": "Dani Mak",
+  "version": "1.0.0",
+  "description": "Dani Mak : gestion de maquis, restaurants, bars et fast-foods.",
+  "author": "Dani Mak",
+  "private": true,
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "bf.danimak.app",
+    "productName": "Dani Mak",
+    "artifactName": "DaniMak-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**",
+      "assets/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        {
+          "target": "dmg"
+        }
+      ],
+      "category": "public.app-category.business",
+      "icon": "assets/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Dani Mak ${version}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "shortcutName": "Dani Mak",
+      "installerLanguages": [
+        "fr_FR"
+      ],
+      "language": "1036"
+    }
+  }
+}

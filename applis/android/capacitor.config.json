@@ -1,0 +1,14 @@
+{
+  "appId": "bf.danimak.app",
+  "appName": "Dani Mak",
+  "webDir": "www",
+  "backgroundColor": "#faf6e9",
+  "server": {
+    "url": "https://restaurant-management-saas-platform.vercel.app/dashboard",
+    "errorPath": "erreur.html",
+    "allowNavigation": ["restaurant-management-saas-platform.vercel.app"]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

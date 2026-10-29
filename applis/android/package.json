@@ -1,0 +1,18 @@
+{
+  "name": "dani-mak-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Application Android Dani Mak : ouvre la plateforme en ligne.",
+  "scripts": {
+    "sync": "cap sync android",
+    "apk": "cap sync android && cd android && ./gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

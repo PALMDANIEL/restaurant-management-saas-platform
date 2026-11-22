@@ -13,6 +13,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 5_000,
             refetchOnWindowFocus: false,
+            // Sans réseau, laisser la requête partir : le service worker répond avec la
+            // copie gardée sur l'appareil (sinon la requête restait en pause et l'écran vide).
+            networkMode: "always",
+            retry: 1,
+          },
+          mutations: {
+            // Sans cela, une vente faite hors connexion n'atteignait jamais la file d'attente.
+            networkMode: "always",
           },
         },
       })

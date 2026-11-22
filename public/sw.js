@@ -91,12 +91,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Jamais gardés : connexion, administration, images optimisées, paiement.
+  // Jamais gardés : connexion, administration, paiement.
   if (
     url.pathname.startsWith("/api/auth/login") ||
     url.pathname.startsWith("/admin") ||
     url.pathname.startsWith("/api/admin") ||
-    url.pathname.startsWith("/_next/image") ||
     url.pathname.startsWith("/paiement") ||
     url.pathname.startsWith("/api/paiement")
   ) {

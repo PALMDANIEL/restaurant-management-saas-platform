@@ -20,7 +20,7 @@ const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET || "maquis-manager-dev-secret-change-me-in-production"
 );
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/health", "/api/companies/public", "/paiement"];
+const PUBLIC_PATHS = ["/sw.js", "/manifest.json", "/login", "/api/auth/login", "/api/health", "/api/companies/public", "/paiement"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

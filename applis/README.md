@@ -1,6 +1,6 @@
 # Applications Dani Mak (Windows, macOS, Android)
 
-Les trois applications ouvrent la plateforme en ligne (https://restaurant-management-saas-platform.vercel.app).
+Les trois applications ouvrent la plateforme en ligne (https://danimak-102-204-24-173.sslip.io).
 Les mises à jour du site arrivent donc sans réinstaller l'application.
 
 ## Windows et macOS (`bureau/`, Electron)

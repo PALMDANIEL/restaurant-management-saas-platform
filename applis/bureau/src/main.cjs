@@ -5,7 +5,7 @@ const { app, BrowserWindow, Menu, shell, ipcMain } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const APP_URL = (process.env.DANIMAK_URL || "https://restaurant-management-saas-platform.vercel.app").replace(/\/$/, "");
+const APP_URL = (process.env.DANIMAK_URL || "https://danimak-102-204-24-173.sslip.io").replace(/\/$/, "");
 const ORIGIN = new URL(APP_URL).origin;
 const ETAT = () => path.join(app.getPath("userData"), "fenetre.json");
 

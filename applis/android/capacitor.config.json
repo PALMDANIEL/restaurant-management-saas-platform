@@ -4,9 +4,9 @@
   "webDir": "www",
   "backgroundColor": "#faf6e9",
   "server": {
-    "url": "https://restaurant-management-saas-platform.vercel.app/dashboard",
+    "url": "https://danimak-102-204-24-173.sslip.io/dashboard",
     "errorPath": "erreur.html",
-    "allowNavigation": ["restaurant-management-saas-platform.vercel.app"]
+    "allowNavigation": ["danimak-102-204-24-173.sslip.io"]
   },
   "android": {
     "allowMixedContent": false

@@ -8,7 +8,6 @@ import { z } from "zod";
 
 import { FCFA_PER_POINT } from "@/lib/loyalty";
 
-export { FCFA_PER_POINT };
 
 export async function GET(req: NextRequest) {
   try {

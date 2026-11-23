@@ -31,6 +31,7 @@ type Product = {
 export default function ProductsPage() {
   const venueParam = useVenueParam();
   const venues = useAppStore((s) => s.venues);
+  const sessionReady = useAppStore((s) => s.user !== null);
   const queryClient = useQueryClient();
   const [showProductForm, setShowProductForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -158,7 +159,7 @@ export default function ProductsPage() {
         }
       />
 
-      {!targetVenueId && (
+      {sessionReady && !targetVenueId && (
         <p className="rounded-xl border border-sun/30 bg-sun-soft p-3 text-sm font-medium text-sun">
           Aucun établissement (maquis/restaurant) n&apos;a encore été créé pour cette entreprise.
           Créez-en un d&apos;abord dans l&apos;écran Établissements avant d&apos;ajouter des catégories ou des produits.

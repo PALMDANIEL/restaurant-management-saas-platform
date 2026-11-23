@@ -1,0 +1,32 @@
+{
+  "entreprise": "NOM DU MAQUIS",
+  "etablissement": { "nom": "NOM DU MAQUIS", "adresse": "Ouagadougou", "telephone": "" },
+  "comptes": [
+    { "email": "gerant@nom-du-maquis.bf", "role": "gerant", "prenom": "Prénom", "nom": "Nom" },
+    { "email": "caisse@nom-du-maquis.bf", "role": "caissier", "prenom": "Caisse", "nom": "Principale" },
+    { "email": "serveuse1@nom-du-maquis.bf", "role": "serveuse", "prenom": "Serveuse", "nom": "Un" },
+    { "email": "serveuse2@nom-du-maquis.bf", "role": "serveuse", "prenom": "Serveuse", "nom": "Deux" }
+  ],
+  "categories": [
+    { "nom": "Bières", "couleur": "#f59e0b", "produits": [
+      { "nom": "Brakina 65cl", "prix": 800, "cout": 600 },
+      { "nom": "Flag 65cl", "prix": 800, "cout": 600 },
+      { "nom": "Castel 65cl", "prix": 800, "cout": 600 }
+    ]},
+    { "nom": "Boissons", "couleur": "#3b82f6", "produits": [
+      { "nom": "Coca-Cola 33cl", "prix": 400, "cout": 250 },
+      { "nom": "Eau minérale 1,5L", "prix": 500, "cout": 300 }
+    ]},
+    { "nom": "Grillades", "couleur": "#f97316", "produits": [
+      { "nom": "Poulet braisé", "prix": 3500, "cout": 2200 },
+      { "nom": "Poisson braisé", "prix": 3000, "cout": 1800 },
+      { "nom": "Brochettes de bœuf", "prix": 1000, "cout": 600 }
+    ]},
+    { "nom": "Accompagnements", "couleur": "#16a34a", "produits": [
+      { "nom": "Attiéké", "prix": 500, "cout": 250 },
+      { "nom": "Alloco", "prix": 500, "cout": 250 },
+      { "nom": "Frites", "prix": 1000, "cout": 500 }
+    ]}
+  ],
+  "tables": 10
+}

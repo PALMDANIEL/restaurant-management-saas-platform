@@ -99,15 +99,15 @@ export default function CashRegisterPage() {
       const res = await fetch("/api/cash-register/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venueId: targetVenueId, confirmation: "REINITIALISER" }),
+        body: JSON.stringify({ venueId: targetVenueId, confirmation: "TOUT EFFACER" }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       return res.json();
     },
     onSuccess: (data) => {
       const d = data.supprime;
-      toast.success(`Caisse réinitialisée : ${d.commandes} commande(s), ${d.paiements} paiement(s) et ${d.sessions} session(s) effacés`);
-      for (const key of ["cash-sessions", "orders", "dashboard", "products"]) {
+      toast.success(`Maquis remis à zéro : ${d.commandes} commande(s), ${d.produits} produit(s), ${d.clients} client(s) effacés`);
+      for (const key of ["cash-sessions", "orders", "dashboard", "products", "categories", "tables", "customers", "expenses", "suppliers", "reservations"]) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
       setShowResetForm(false);
@@ -128,7 +128,7 @@ export default function CashRegisterPage() {
         <div className="flex flex-wrap items-center gap-2">
         {can(user?.role, "resetCashRegister") && targetVenueId && (
           <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={() => setShowResetForm(true)}>
-            <RotateCcw className="h-4 w-4" /> Réinitialiser
+            <RotateCcw className="h-4 w-4" /> Tout remettre à zéro
           </Button>
         )}
         {can(user?.role, "manageCashRegister") &&
@@ -262,14 +262,20 @@ export default function CashRegisterPage() {
       {showResetForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold text-red-600">Réinitialiser la caisse</h3>
-            <p className="mb-3 text-sm text-muted-foreground">
-              Efface toutes les ventes, paiements, avoirs et sessions de caisse de{" "}
-              <strong>{venues.find((v) => v.id === targetVenueId)?.name ?? "ce point de vente"}</strong>. Les produits, le stock, les clients
-              et les comptes ne sont pas touchés. <strong>Cette action est irréversible.</strong>
+            <h3 className="mb-2 text-lg font-semibold text-red-600">Tout remettre à zéro</h3>
+            <p className="mb-2 text-sm text-muted-foreground">
+              <strong>{venues.find((v) => v.id === targetVenueId)?.name ?? "Ce point de vente"}</strong> redevient un maquis tout neuf.
             </p>
-            <Label>Tapez REINITIALISER pour confirmer</Label>
-            <Input value={resetText} onChange={(e) => setResetText(e.target.value)} autoComplete="off" placeholder="REINITIALISER" />
+            <p className="mb-1 text-sm text-muted-foreground">
+              <strong>Effacé :</strong>{" "}ventes, paiements, avoirs, sessions de caisse, produits, catégories, stock, tables, réservations,
+              clients et points de fidélité, dépenses, fournisseurs, pointages et notes du personnel, notifications.
+            </p>
+            <p className="mb-3 text-sm text-muted-foreground">
+              <strong>Gardé :</strong>{" "}le nom du maquis, les comptes (gérant, caissiers, serveuses), les horaires d&apos;équipes et le journal d&apos;audit.
+              <strong> Cette action est irréversible.</strong>
+            </p>
+            <Label>Tapez TOUT EFFACER pour confirmer</Label>
+            <Input value={resetText} onChange={(e) => setResetText(e.target.value)} autoComplete="off" placeholder="TOUT EFFACER" />
             <div className="mt-4 flex gap-2">
               <Button type="button" variant="outline" className="w-full" onClick={() => { setShowResetForm(false); setResetText(""); }}>
                 Annuler
@@ -278,7 +284,7 @@ export default function CashRegisterPage() {
                 type="button"
                 variant="destructive"
                 className="w-full"
-                disabled={resetText !== "REINITIALISER"}
+                disabled={resetText !== "TOUT EFFACER"}
                 loading={resetRegister.isPending}
                 onClick={() => resetRegister.mutate()}
               >

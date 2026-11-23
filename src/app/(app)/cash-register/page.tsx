@@ -11,7 +11,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { formatDate, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { can } from "@/lib/rbac";
-import { Wallet, Lock, Unlock } from "lucide-react";
+import { Wallet, Lock, Unlock, RotateCcw } from "lucide-react";
 
 type CashSession = {
   id: number;
@@ -37,6 +37,8 @@ export default function CashRegisterPage() {
   const queryClient = useQueryClient();
   const [showOpenForm, setShowOpenForm] = useState(false);
   const [showCloseForm, setShowCloseForm] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetText, setResetText] = useState("");
 
   const targetVenueId = venueParam !== "all" ? Number(venueParam) : venues[0]?.id;
 
@@ -92,6 +94,28 @@ export default function CashRegisterPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const resetRegister = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/cash-register/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId: targetVenueId, confirmation: "REINITIALISER" }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const d = data.supprime;
+      toast.success(`Caisse réinitialisée : ${d.commandes} commande(s), ${d.paiements} paiement(s) et ${d.sessions} session(s) effacés`);
+      for (const key of ["cash-sessions", "orders", "dashboard", "products"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      setShowResetForm(false);
+      setResetText("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -101,6 +125,12 @@ export default function CashRegisterPage() {
             Ouvrez et clôturez vos sessions de caisse, suivez les écarts.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {can(user?.role, "resetCashRegister") && targetVenueId && (
+          <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={() => setShowResetForm(true)}>
+            <RotateCcw className="h-4 w-4" /> Réinitialiser
+          </Button>
+        )}
         {can(user?.role, "manageCashRegister") &&
           (currentSession ? (
             <Button variant="destructive" onClick={() => setShowCloseForm(true)}>
@@ -111,6 +141,7 @@ export default function CashRegisterPage() {
               <Unlock className="h-4 w-4" /> Ouvrir la caisse
             </Button>
           ))}
+        </div>
       </div>
 
       <Card className={cn(currentSession ? "border-emerald-300" : "border-amber-300")}>
@@ -224,6 +255,36 @@ export default function CashRegisterPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showResetForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold text-red-600">Réinitialiser la caisse</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Efface toutes les ventes, paiements, avoirs et sessions de caisse de{" "}
+              <strong>{venues.find((v) => v.id === targetVenueId)?.name ?? "ce point de vente"}</strong>. Les produits, le stock, les clients
+              et les comptes ne sont pas touchés. <strong>Cette action est irréversible.</strong>
+            </p>
+            <Label>Tapez REINITIALISER pour confirmer</Label>
+            <Input value={resetText} onChange={(e) => setResetText(e.target.value)} autoComplete="off" placeholder="REINITIALISER" />
+            <div className="mt-4 flex gap-2">
+              <Button type="button" variant="outline" className="w-full" onClick={() => { setShowResetForm(false); setResetText(""); }}>
+                Annuler
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full"
+                disabled={resetText !== "REINITIALISER"}
+                loading={resetRegister.isPending}
+                onClick={() => resetRegister.mutate()}
+              >
+                Effacer
+              </Button>
+            </div>
           </div>
         </div>
       )}

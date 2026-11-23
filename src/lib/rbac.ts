@@ -21,6 +21,8 @@ export const PERMISSIONS = {
   editSale: ["super_admin", "gerant", "manager", "caissier"],
   cancelSale: ["super_admin", "gerant", "manager", "caissier"],
   manageCashRegister: ["super_admin", "gerant", "manager", "caissier"],
+  // Efface les ventes d'un point de vente (essais avant ouverture) : propriétaire et gérant seulement.
+  resetCashRegister: ["super_admin", "gerant"],
   viewFinance: ["super_admin", "gerant", "manager"],
   manageExpenses: ["super_admin", "gerant", "manager"],
   manageSuppliers: ["super_admin", "gerant", "manager"],

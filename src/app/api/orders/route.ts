@@ -18,6 +18,7 @@ import {
   handleApiError,
   logAudit,
   pushNotification,
+  clientTime,
 } from "@/lib/api-helpers";
 import { assertCan } from "@/lib/rbac";
 import { settleOrderPayment } from "@/lib/payments";
@@ -150,7 +151,9 @@ export async function POST(req: NextRequest) {
         customerId: body.customerId ?? null,
         cashierId: session.role === "caissier" || session.role === "manager" ? session.userId : null,
         status: body.immediatePayment ? "paid" : "new",
-        servedAt: body.immediatePayment ? new Date() : null,
+        // Vente faite sans réseau : elle garde l'heure à laquelle elle a eu lieu (journée comptable juste).
+        ...(clientTime(req) ? { createdAt: clientTime(req)! } : {}),
+        servedAt: body.immediatePayment ? (clientTime(req) ?? new Date()) : null,
         source: body.source,
         notes: body.notes,
         totalAmount: total,

@@ -30,6 +30,13 @@ import { NotificationsPanel } from "./notifications-panel";
 
 type Notification = { id: number; type: string; read: boolean };
 
+/** Une page est « active » dans le menu, sauf si une entrée plus précise correspond mieux (ex. /servers/planning). */
+function isActiveNav(pathname: string, href: string) {
+  const matches = (h: string) => pathname === h || pathname.startsWith(h + "/");
+  if (!matches(href)) return false;
+  return !NAV_ITEMS.some((other) => other.href.length > href.length && other.href.startsWith(href + "/") && matches(other.href));
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   useSession();
   const pathname = usePathname();
@@ -104,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex h-[calc(100vh-4rem)] flex-col gap-0.5 overflow-y-auto px-3 py-3">
           {visibleNav.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const active = isActiveNav(pathname, item.href);
             const Icon = item.icon;
             return (
               <Link
@@ -261,7 +268,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Mobile bottom tab bar — reach-friendly nav for staff on the floor */}
         <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-card/95 pb-safe backdrop-blur-md lg:hidden">
           {mobileNav.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const active = isActiveNav(pathname, item.href);
             const Icon = item.icon;
             return (
               <Link

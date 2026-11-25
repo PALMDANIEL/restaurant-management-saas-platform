@@ -40,6 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/products", label: "Produits & Catégories", icon: Store, permission: "manageProducts" },
   { href: "/stock", label: "Stock", icon: Boxes, permission: "viewStock" },
   { href: "/servers", label: "Serveuses", icon: Star, permission: "manageServers" },
+  { href: "/servers/planning", label: "Planning des groupes", icon: CalendarDays, permission: "manageServers" },
   { href: "/customers", label: "Clients & Fidélité", icon: Users, permission: "manageCustomers" },
   { href: "/credit-notes", label: "Avoirs", icon: Ticket, permission: "manageCreditNotes" },
   { href: "/reservations", label: "Réservations", icon: CalendarClock, permission: "manageReservations" },

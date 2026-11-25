@@ -7,6 +7,21 @@ import { ForbiddenError, UnauthorizedError } from "./rbac";
 import type { SessionPayload } from "./auth";
 import { ZodError } from "zod";
 
+/**
+ * Heure à laquelle une opération faite sans réseau a vraiment eu lieu (en-tête posé par le
+ * téléphone au moment de renvoyer la file d'attente). Refusée si elle est dans le futur ou
+ * vieille de plus de 3 jours : le serveur garde alors sa propre heure.
+ */
+export function clientTime(req: Request): Date | null {
+  const raw = req.headers.get("x-queued-at");
+  if (!raw) return null;
+  const ms = Number(raw);
+  if (!Number.isFinite(ms)) return null;
+  const now = Date.now();
+  if (ms > now + 60_000 || ms < now - 3 * 24 * 3600_000) return null;
+  return new Date(Math.min(ms, now));
+}
+
 export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();
   if (!session) throw new UnauthorizedError("Not authenticated");

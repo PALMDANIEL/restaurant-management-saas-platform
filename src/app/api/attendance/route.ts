@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { attendanceRecords, users } from "@/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
-import { requireSession, getAccessibleVenueIds, handleApiError, logAudit } from "@/lib/api-helpers";
+import { requireSession, getAccessibleVenueIds, handleApiError, logAudit, clientTime } from "@/lib/api-helpers";
 import { can } from "@/lib/rbac";
 import { getShiftSettings } from "@/lib/shift-settings";
 import { attendanceWorkDate } from "@/lib/staff-scoring";
@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
-    const clockInAt = body.clockIn ? new Date(body.clockIn) : now;
+    // Pointage fait sans réseau : on garde l'heure à laquelle la personne a vraiment pointé.
+    const clockInAt = body.clockIn ? new Date(body.clockIn) : (clientTime(req) ?? now);
     const clockOutAt = body.clockOut ? new Date(body.clockOut) : null;
     if (clockInAt > now || (clockOutAt && (clockOutAt <= clockInAt || clockOutAt > now))) {
       return NextResponse.json({ error: "Heures incohérentes (départ avant l'arrivée ou dans le futur)." }, { status: 400 });
@@ -223,7 +224,7 @@ export async function PATCH(req: NextRequest) {
 
     const [record] = await db
       .update(attendanceRecords)
-      .set({ clockOut: new Date() })
+      .set({ clockOut: (() => { const t = clientTime(req); return t && t > existing.clockIn ? t : new Date(); })() })
       .where(eq(attendanceRecords.id, body.id))
       .returning();
 

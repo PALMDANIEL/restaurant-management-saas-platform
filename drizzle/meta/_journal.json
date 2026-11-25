@@ -50,6 +50,20 @@
       "when": 1793085660803,
       "tag": "0006_staff_rating",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795590333392,
+      "tag": "0007_rotation_groupes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795592278053,
+      "tag": "0008_infos_reunions",
+      "breakpoints": true
     }
   ]
 }

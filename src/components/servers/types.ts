@@ -8,6 +8,7 @@ export type StaffDay = {
   lastName: string;
   workDate: string;
   shiftGroup: "jour" | "soir" | null;
+  planned: "jour" | "soir" | "repos" | null;
   orderCount: number;
   totalSales: number;
   averageTicket: number;
@@ -44,6 +45,8 @@ export type StaffUser = {
   active: boolean;
   matricule: string | null;
   shiftGroup: "jour" | "soir" | null;
+  restDay: number | null;
+  rotationGroupId: number | null;
 };
 
 export type ShiftSettings = {

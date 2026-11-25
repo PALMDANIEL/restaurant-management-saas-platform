@@ -6,6 +6,7 @@ import { requireSession, getAccessibleVenueIds, handleApiError, logAudit } from 
 import { can } from "@/lib/rbac";
 import { getShiftSettings } from "@/lib/shift-settings";
 import { attendanceWorkDate } from "@/lib/staff-scoring";
+import { loadPlan, resolveShift } from "@/lib/shift-plan";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -73,9 +74,9 @@ export async function POST(req: NextRequest) {
 
     const [target] = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
     if (!target) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
-    if (!target.shiftGroup) {
+    if (!target.shiftGroup && target.rotationGroupId === null) {
       return NextResponse.json(
-        { error: "Cette personne n'a pas d'équipe (jour/soir) assignée. Modifiez sa fiche d'abord." },
+        { error: "Cette personne n'a ni équipe (matin/soir) ni groupe de rotation. Modifiez sa fiche d'abord." },
         { status: 400 }
       );
     }
@@ -98,14 +99,33 @@ export async function POST(req: NextRequest) {
     }
 
     const settings = await getShiftSettings(body.venueId);
-    const workDate = attendanceWorkDate(clockInAt, target.shiftGroup, settings);
+    const { blocks } = await loadPlan(body.venueId);
+    // Service du jour d'après le planning de rotation ; sinon équipe fixe. On essaie d'abord
+    // la journée proche de l'heure d'arrivée pour chaque service possible.
+    const candidates = (["jour", "soir"] as const).map((g) => {
+      const date = attendanceWorkDate(clockInAt, g, settings);
+      return { g, date, plan: resolveShift(target, date, blocks) };
+    });
+    const planned = candidates.find((c) => c.plan.status === c.g);
+    if (!planned && target.rotationGroupId === null && !target.shiftGroup) {
+      return NextResponse.json({ error: "Aucun service prévu pour cette personne." }, { status: 400 });
+    }
+    if (!planned && !manual && candidates.every((c) => c.plan.status === "repos")) {
+      const rest = candidates.some((c) => c.plan.reason === "repos-hebdo");
+      return NextResponse.json(
+        { error: rest ? "C'est le jour de repos de cette personne." : "Son groupe n'est pas planifié aujourd'hui (jour de repos du groupe)." },
+        { status: 400 }
+      );
+    }
+    const shiftGroup = planned?.g ?? target.shiftGroup ?? candidates[0].g;
+    const workDate = planned?.date ?? attendanceWorkDate(clockInAt, shiftGroup, settings);
 
     const [record] = await db
       .insert(attendanceRecords)
       .values({
         venueId: body.venueId,
         userId: targetUserId,
-        shiftGroup: target.shiftGroup,
+        shiftGroup,
         workDate,
         clockIn: clockInAt,
         clockOut: clockOutAt,

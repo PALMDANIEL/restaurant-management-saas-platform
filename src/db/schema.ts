@@ -10,6 +10,7 @@ import {
   jsonb,
   numeric,
   date,
+  smallint,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
@@ -170,6 +171,11 @@ export const users = pgTable(
     // Équipe fixe assignée (personnel de salle) : journée ou soirée. Nullable pour les rôles
     // qui ne travaillent pas en rotation jour/soir (gérant, manager...).
     shiftGroup: shiftGroupEnum("shift_group"),
+    // Jour de repos hebdomadaire (0 = dimanche … 6 = samedi) : jamais planifiée ce jour-là.
+    restDay: smallint("rest_day"),
+    // Groupe de rotation (A, B, C…) : si renseigné, le planning par blocs de dates décide
+    // du service (matin/soir/repos) à la place de l'équipe fixe `shiftGroup`.
+    rotationGroupId: integer("rotation_group_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -800,3 +806,80 @@ export const refreshTokens = pgTable("refresh_tokens", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   revoked: boolean("revoked").notNull().default(false),
 });
+
+// Groupes de rotation d'un point de vente (A, B, C…) : le manager y range les serveuses.
+export const shiftGroups = pgTable(
+  "shift_groups",
+  {
+    id: serial("id").primaryKey(),
+    venueId: integer("venue_id")
+      .notNull()
+      .references(() => venues.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 40 }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("shift_groups_venue_idx").on(t.venueId)]
+);
+
+// Planning : un bloc dit que le groupe travaille `shift` (matin ou soir) du `startDate` au
+// `endDate` inclus (journées d'exploitation). Un groupe sans bloc un jour donné est en repos.
+export const shiftPlanBlocks = pgTable(
+  "shift_plan_blocks",
+  {
+    id: serial("id").primaryKey(),
+    venueId: integer("venue_id")
+      .notNull()
+      .references(() => venues.id, { onDelete: "cascade" }),
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => shiftGroups.id, { onDelete: "cascade" }),
+    shift: shiftGroupEnum("shift").notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("shift_plan_venue_idx").on(t.venueId),
+    index("shift_plan_dates_idx").on(t.startDate, t.endDate),
+  ]
+);
+
+// Infos affichées au personnel de salle (consignes, annonces), par point de vente.
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: serial("id").primaryKey(),
+    venueId: integer("venue_id")
+      .notNull()
+      .references(() => venues.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 150 }).notNull(),
+    body: text("body").notNull(),
+    pinned: boolean("pinned").notNull().default(false),
+    expiresAt: timestamp("expires_at"),
+    createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("announcements_venue_idx").on(t.venueId)]
+);
+
+// Réunions du personnel. `groupIds` null = toutes les serveuses ; sinon seulement les groupes cités.
+// Les rappels (sonnerie 2 h et/ou 1 h avant) sont réglés par le manager pour chaque réunion.
+export const meetings = pgTable(
+  "meetings",
+  {
+    id: serial("id").primaryKey(),
+    venueId: integer("venue_id")
+      .notNull()
+      .references(() => venues.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 150 }).notNull(),
+    notes: text("notes"),
+    place: varchar("place", { length: 150 }),
+    startsAt: timestamp("starts_at").notNull(),
+    remind2h: boolean("remind_2h").notNull().default(true),
+    remind1h: boolean("remind_1h").notNull().default(true),
+    groupIds: jsonb("group_ids").$type<number[] | null>(),
+    createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("meetings_venue_idx").on(t.venueId), index("meetings_starts_idx").on(t.startsAt)]
+);

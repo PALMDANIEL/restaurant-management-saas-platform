@@ -68,7 +68,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname === "/login" && isAuthenticated) {
-    return NextResponse.redirect(new URL(role === "platform_admin" ? "/admin" : "/dashboard", req.url));
+    return NextResponse.redirect(new URL(role === "platform_admin" ? "/admin" : role === "serveuse" ? "/infos" : "/dashboard", req.url));
   }
 
   return NextResponse.next();

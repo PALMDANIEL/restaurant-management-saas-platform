@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, userVenues, companies, venues } from "@/db/schema";
+import { users, userVenues, companies, venues, shiftGroups } from "@/db/schema";
 import { and, eq, inArray, count } from "drizzle-orm";
 import { requireCompanySession, handleApiError, logAudit } from "@/lib/api-helpers";
 import { assertCan, can } from "@/lib/rbac";
@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
       active: u.active,
       matricule: u.matricule,
       shiftGroup: u.shiftGroup,
+      restDay: u.restDay,
+      rotationGroupId: u.rotationGroupId,
       createdAt: u.createdAt,
       venueIds: assignments.filter((a) => a.userId === u.id).map((a) => a.venueId),
     }));
@@ -135,6 +137,8 @@ const updateSchema = z.object({
   phone: z.string().optional(),
   matricule: z.string().optional(),
   shiftGroup: z.enum(["jour", "soir"]).nullable().optional(),
+  restDay: z.number().int().min(0).max(6).nullable().optional(),
+  rotationGroupId: z.number().int().nullable().optional(),
   active: z.boolean().optional(),
   password: z.string().min(6).optional(),
   venueIds: z.array(z.number()).optional(),
@@ -155,6 +159,13 @@ export async function PATCH(req: NextRequest) {
     }
     assertCan(session.role, target.role === "serveuse" && !rest.role ? "manageServers" : "manageUsers");
 
+    if (rest.rotationGroupId != null) {
+      const companyVenueRows = await db.select({ id: venues.id }).from(venues).where(eq(venues.companyId, session.companyId));
+      const [grp] = await db.select({ venueId: shiftGroups.venueId }).from(shiftGroups).where(eq(shiftGroups.id, rest.rotationGroupId)).limit(1);
+      if (!grp || !companyVenueRows.some((v) => v.id === grp.venueId)) {
+        return NextResponse.json({ error: "Groupe introuvable" }, { status: 404 });
+      }
+    }
     const updates: Record<string, unknown> = { ...rest };
     if (password) updates.passwordHash = await hashPassword(password);
 

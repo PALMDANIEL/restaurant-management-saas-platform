@@ -10,6 +10,7 @@ import { can } from "@/lib/rbac";
 import { useAppStore } from "@/store/app-store";
 import { useSession } from "@/hooks/use-session";
 import { useOrderNotificationChime } from "@/hooks/use-order-notification-chime";
+import { useMeetingReminders } from "@/hooks/use-meeting-reminders";
 import { cn, initials, ROLE_LABELS } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const notifications: Notification[] = notifData?.notifications ?? [];
   const unreadCount = notifications.filter((n) => !n.read).length;
   useOrderNotificationChime(notifications);
+  useMeetingReminders();
 
   const user = useAppStore((s) => s.user);
   const venues = useAppStore((s) => s.venues);

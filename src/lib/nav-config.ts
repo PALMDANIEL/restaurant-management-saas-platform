@@ -17,6 +17,7 @@ import {
   ScrollText,
   Star,
   CalendarClock,
+  CalendarDays,
   Store,
   QrCode,
   Ticket,
@@ -32,6 +33,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["super_admin", "gerant", "manager", "caissier"] },
+  { href: "/infos", label: "Infos & réunions", icon: CalendarDays },
   { href: "/pos", label: "Point de vente", icon: ShoppingCart, permission: "createSale" },
   { href: "/orders", label: "Commandes", icon: UtensilsCrossed, permission: "manageOrders" },
   { href: "/cash-register", label: "Caisse", icon: Wallet, permission: "manageCashRegister" },

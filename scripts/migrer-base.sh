@@ -39,6 +39,8 @@ deja_appliquee() {
     0004_*) [[ $(sql "select to_regclass('public.attendance_records') is not null") == t ]] ;;
     0005_*) [[ $(sql "select to_regclass('public.ligdicash_invoices') is not null") == t ]] ;;
     0006_*) [[ $(sql "select to_regclass('public.staff_scoring_rules') is not null") == t ]] ;;
+    0007_*) [[ $(sql "select to_regclass('public.shift_groups') is not null") == t ]] ;;
+    0008_*) [[ $(sql "select to_regclass('public.meetings') is not null") == t ]] ;;
     *) return 1 ;;
   esac
 }

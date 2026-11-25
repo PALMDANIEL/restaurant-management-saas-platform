@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { attendanceRecords, orders, staffBehaviorRatings, staffScoringRules, userVenues, users } from "@/db/schema";
 import { and, asc, eq, gte, inArray, lt, lte, ne } from "drizzle-orm";
 import { getShiftSettings } from "./shift-settings";
+import { loadPlan, resolveShift } from "./shift-plan";
 import { businessDateRange, getBusinessDate, toDateKey } from "./business-day";
 import {
   DEFAULT_SCORING_RULES,
@@ -82,6 +83,8 @@ export type StaffDay = {
   userId: number;
   workDate: string;
   shiftGroup: ShiftGroup | null;
+  /** Service prévu ce jour (planning de rotation, jour de repos, équipe fixe). */
+  planned: ShiftGroup | "repos" | null;
   orderCount: number;
   totalSales: number;
   averageTicket: number;
@@ -139,6 +142,7 @@ export async function computeStaffDays(opts: {
   if (servers.length === 0) return { settings, versions, servers, days: [] as StaffDay[] };
   const serverIds = servers.map((s) => s.id);
 
+  const { blocks: planBlocks } = await loadPlan(opts.venueId, opts.from, opts.to);
   const start = businessDateRange(opts.from, settings.nightEndTime).start;
   const end = businessDateRange(opts.to, settings.nightEndTime).end;
 
@@ -195,8 +199,10 @@ export async function computeStaffDays(opts: {
         (sum, a) => sum + Math.max(0, ((a.clockOut ?? now).getTime() - a.clockIn.getTime()) / 60000),
         0
       );
+      // Service prévu : planning de rotation / repos hebdomadaire, sinon équipe fixe.
+      const planned = resolveShift(s, workDate, planBlocks).status;
       // L'équipe retenue est celle du pointage (elle a pu changer d'équipe depuis).
-      const group = (myAttendance[0]?.shiftGroup ?? s.shiftGroup) as ShiftGroup | null;
+      const group = (myAttendance[0]?.shiftGroup ?? (planned === "repos" ? null : planned)) as ShiftGroup | null;
 
       let punctuality: StaffDay["punctuality"] = null;
       if (group && myAttendance.length > 0) {
@@ -223,6 +229,7 @@ export async function computeStaffDays(opts: {
         userId: s.id,
         workDate,
         shiftGroup: group,
+        planned,
         orderCount: myOrders.length,
         totalSales,
         averageTicket: myOrders.length > 0 ? Math.round(totalSales / myOrders.length) : 0,

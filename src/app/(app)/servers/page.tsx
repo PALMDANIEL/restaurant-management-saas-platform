@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVenueParam } from "@/hooks/use-venue-query";
@@ -13,6 +14,7 @@ import { can } from "@/lib/rbac";
 import {
   AlertTriangle,
   CalendarCheck,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -132,8 +134,19 @@ export default function ServersPage() {
   const isToday = !!today && workDate === today;
   const activeTeam: Team = team ?? currentTeam(settings);
 
+  // Équipe du jour affiché : planning de rotation / repos hebdomadaire, sinon équipe fixe.
+  const teamOfDay = (s: StaffUser): "jour" | "soir" | "repos" | null => {
+    const planned = dailyById.get(s.id)?.planned;
+    return planned === undefined ? s.shiftGroup : planned;
+  };
   const visible = useMemo(() => {
-    const list = servers.filter((s) => activeTeam === "all" || s.shiftGroup === activeTeam);
+    const list = servers.filter((s) => {
+      const t = (() => {
+        const planned = dailyById.get(s.id)?.planned;
+        return planned === undefined ? s.shiftGroup : planned;
+      })();
+      return activeTeam === "all" || t === activeTeam;
+    });
     // En service d'abord, puis par note.
     return list.sort((a, b) => {
       const da = dailyById.get(a.id);
@@ -142,10 +155,11 @@ export default function ServersPage() {
       return clocked || (db?.note ?? -1) - (da?.note ?? -1) || a.firstName.localeCompare(b.firstName);
     });
   }, [servers, activeTeam, dailyById]);
-  const unassigned = servers.filter((s) => !s.shiftGroup);
+  const unassigned = servers.filter((s) => !s.shiftGroup && s.rotationGroupId === null);
+  const resting = servers.filter((s) => teamOfDay(s) === "repos");
   const counts = {
-    jour: servers.filter((s) => s.shiftGroup === "jour").length,
-    soir: servers.filter((s) => s.shiftGroup === "soir").length,
+    jour: servers.filter((s) => teamOfDay(s) === "jour").length,
+    soir: servers.filter((s) => teamOfDay(s) === "soir").length,
     all: servers.length,
   };
 
@@ -228,6 +242,12 @@ export default function ServersPage() {
         actions={
           manager && (
             <>
+              <Link
+                href="/servers/planning"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted sm:px-4"
+              >
+                <CalendarDays className="h-4 w-4" /> Planning
+              </Link>
               <Button variant="outline" size="md" className="px-3 sm:px-4" onClick={() => setDialog({ kind: "rules" })}>
                 <SlidersHorizontal className="h-4 w-4" /> Règles<span className="hidden sm:inline"> de notation</span>
               </Button>
@@ -354,6 +374,12 @@ export default function ServersPage() {
           onClick={manager && toRate.length ? () => setDialog({ kind: "behavior", userId: toRate[0].id }) : undefined}
         />
       </div>
+
+      {resting.length > 0 && activeTeam !== "all" && (
+        <p className="rounded-2xl border border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
+          😴 En repos {isToday ? "aujourd'hui" : "ce jour-là"} : {resting.map((s) => s.firstName).join(", ")}
+        </p>
+      )}
 
       {unassigned.length > 0 && activeTeam !== "all" && manager && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-sun/30 bg-sun-soft px-4 py-3 text-sm">

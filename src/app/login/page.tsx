@@ -80,7 +80,7 @@ export default function LoginPage() {
         return;
       }
       toast.success(`Bienvenue ${data.user.firstName} !`);
-      router.push("/dashboard");
+      router.push(data.user.role === "serveuse" ? "/infos" : "/dashboard");
       router.refresh();
     } catch {
       toast.error("Erreur réseau");
